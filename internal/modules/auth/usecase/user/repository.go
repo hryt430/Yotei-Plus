@@ -3,18 +3,18 @@ package userService
 import (
 	"context"
 
-	"auth-service/internal/domain/entity"
+	"github.com/hryt430/Yotei+/internal/modules/auth/domain"
 
 	"github.com/google/uuid"
 )
 
 type UserRepository interface {
-	CreateUser(ctx context.Context, user *entity.User) error
-	FindUserByEmail(ctx context.Context, email string) (*entity.User, error)
-	FindUserByID(ctx context.Context, id uuid.UUID) (*entity.User, error)
-	UpdateUser(ctx context.Context, user *entity.User) error
-	SaveRefreshToken(ctx context.Context, token *entity.RefreshToken) error
-	FindRefreshToken(ctx context.Context, token string) (*entity.RefreshToken, error)
+	CreateUser(ctx context.Context, user *domain.User) error
+	FindUserByEmail(ctx context.Context, email string) (*domain.User, error)
+	FindUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	UpdateUser(ctx context.Context, user *domain.User) error
+	SaveRefreshToken(ctx context.Context, token *domain.RefreshToken) error
+	FindRefreshToken(ctx context.Context, token string) (*domain.RefreshToken, error)
 	RevokeRefreshToken(ctx context.Context, token string) error
 	DeleteExpiredRefreshTokens(ctx context.Context) error
 }

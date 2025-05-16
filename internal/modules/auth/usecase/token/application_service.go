@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"auth-service/internal/domain/entity"
-	userService "auth-service/internal/usecase/user"
+	"github.com/hryt430/Yotei+/internal/modules/auth/domain"
+	userService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/user"
 
-	"auth-service/pkg/token"
+	"github.com/hryt430/Yotei+/pkg/token"
 
 	"github.com/google/uuid"
 )
@@ -36,7 +36,7 @@ func NewTokenUseCase(
 	}
 }
 
-func (t *tokenUseCase) GenerateAccessToken(user *entity.User) (string, error) {
+func (t *tokenUseCase) GenerateAccessToken(user *domain.User) (string, error) {
 	// JWTトークン生成
 	claims := &token.Claims{
 		UserID:   user.ID.String(),
@@ -48,7 +48,7 @@ func (t *tokenUseCase) GenerateAccessToken(user *entity.User) (string, error) {
 	return t.jwtManager.Generate(claims, t.tokenDuration)
 }
 
-func (t *tokenUseCase) GenerateRefreshToken(user *entity.User) (string, error) {
+func (t *tokenUseCase) GenerateRefreshToken(user *domain.User) (string, error) {
 	// ランダムなリフレッシュトークン生成
 	refreshTokenStr, err := t.jwtManager.GenerateRefreshToken()
 	if err != nil {
@@ -56,7 +56,7 @@ func (t *tokenUseCase) GenerateRefreshToken(user *entity.User) (string, error) {
 	}
 
 	// DBにリフレッシュトークンを保存
-	refreshToken := &entity.RefreshToken{
+	refreshToken := &domain.RefreshToken{
 		ID:        uuid.New(),
 		Token:     refreshTokenStr,
 		UserID:    user.ID,

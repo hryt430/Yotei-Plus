@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"auth-service/internal/domain/entity"
+	"github.com/hryt430/Yotei+/internal/modules/auth/domain"
 
 	"github.com/google/uuid"
 )
@@ -13,13 +13,13 @@ type UserServiceRepository struct {
 	SqlHandler
 }
 
-func (r *UserServiceRepository) CreateUser(ctx context.Context, user *entity.User) error {
+func (r *UserServiceRepository) CreateUser(ctx context.Context, user *domain.User) error {
 	query := "INSERT INTO users (id, name, email, password, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
 	_, err := r.Execute(query, user.ID, user.Username, user.Email, user.Password, user.CreatedAt, user.UpdatedAt)
 	return err
 }
 
-func (r *UserServiceRepository) FindUserByEmail(ctx context.Context, email string) (*entity.User, error) {
+func (r *UserServiceRepository) FindUserByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := "SELECT id, name, email, password, created_at, updated_at FROM users WHERE email = ? LIMIT 1"
 	row, err := r.Query(query, email)
 	if err != nil {
@@ -27,7 +27,7 @@ func (r *UserServiceRepository) FindUserByEmail(ctx context.Context, email strin
 	}
 	defer row.Close()
 
-	var user entity.User
+	var user domain.User
 	if !row.Next() {
 		return nil, nil // NotFound扱い
 	}
@@ -37,7 +37,7 @@ func (r *UserServiceRepository) FindUserByEmail(ctx context.Context, email strin
 	return &user, nil
 }
 
-func (r *UserServiceRepository) FindUserByID(ctx context.Context, id uuid.UUID) (*entity.User, error) {
+func (r *UserServiceRepository) FindUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	query := "SELECT id, name, email, password, created_at, updated_at FROM users WHERE id = ? LIMIT 1"
 	row, err := r.Query(query, id)
 	if err != nil {
@@ -45,7 +45,7 @@ func (r *UserServiceRepository) FindUserByID(ctx context.Context, id uuid.UUID) 
 	}
 	defer row.Close()
 
-	var user entity.User
+	var user domain.User
 	if !row.Next() {
 		return nil, nil
 	}
@@ -55,19 +55,19 @@ func (r *UserServiceRepository) FindUserByID(ctx context.Context, id uuid.UUID) 
 	return &user, nil
 }
 
-func (r *UserServiceRepository) UpdateUser(ctx context.Context, user *entity.User) error {
+func (r *UserServiceRepository) UpdateUser(ctx context.Context, user *domain.User) error {
 	query := "UPDATE users SET name = ?, email = ?, password = ?, updated_at = ? WHERE id = ?"
 	_, err := r.Execute(query, user.Username, user.Email, user.Password, time.Now(), user.ID)
 	return err
 }
 
-func (r *UserServiceRepository) SaveRefreshToken(ctx context.Context, token *entity.RefreshToken) error {
+func (r *UserServiceRepository) SaveRefreshToken(ctx context.Context, token *domain.RefreshToken) error {
 	query := "INSERT INTO refresh_tokens (id, user_id, token, expires_at, created_at) VALUES (?, ?, ?, ?, ?)"
 	_, err := r.Execute(query, token.ID, token.UserID, token.Token, token.ExpiresAt, token.CreatedAt)
 	return err
 }
 
-func (r *UserServiceRepository) FindRefreshToken(ctx context.Context, token string) (*entity.RefreshToken, error) {
+func (r *UserServiceRepository) FindRefreshToken(ctx context.Context, token string) (*domain.RefreshToken, error) {
 	query := "SELECT id, user_id, token, expires_at, revoked_at, created_at FROM refresh_tokens WHERE token = ? LIMIT 1"
 	row, err := r.Query(query, token)
 	if err != nil {
@@ -75,7 +75,7 @@ func (r *UserServiceRepository) FindRefreshToken(ctx context.Context, token stri
 	}
 	defer row.Close()
 
-	var rt entity.RefreshToken
+	var rt domain.RefreshToken
 	if !row.Next() {
 		return nil, nil
 	}

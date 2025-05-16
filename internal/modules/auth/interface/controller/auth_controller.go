@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	authService "auth-service/internal/usecase/auth"
-	"auth-service/pkg/utils"
+	authService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/auth"
+	"github.com/hryt430/Yotei+/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 )
