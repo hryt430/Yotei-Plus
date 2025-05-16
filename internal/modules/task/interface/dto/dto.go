@@ -3,7 +3,7 @@ package dto
 import (
 	"time"
 
-	"github.com/hryt430/task-management/internal/modules/task/domain"
+	"github.com/hryt430/Yotei+/internal/modules/task/domain"
 )
 
 // TaskModel はPostgreSQLのタスクテーブルにマッピングするための構造体

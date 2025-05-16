@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/hryt430/task-management/internal/modules/task/domain"
-	"github.com/hryt430/task-management/internal/modules/task/usecase/persistence"
+	"github.com/hryt430/Yotei+/internal/modules/task/domain"
+	"github.com/hryt430/Yotei+/internal/modules/task/usecase/persistence"
 )
 
 // エラー定義

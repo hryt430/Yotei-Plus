@@ -3,7 +3,7 @@ package management
 import (
 	"context"
 
-	"github.com/hryt430/task-management/internal/modules/task/domain"
+	"github.com/hryt430/Yotei+/internal/modules/task/domain"
 )
 
 // TaskRepository はタスク永続化のためのインターフェース

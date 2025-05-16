@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/hryt430/task-management/internal/modules/task/domain"
+	"github.com/hryt430/Yotei+/internal/modules/task/domain"
 )
 
 // TaskService はタスク管理のビジネスロジックを担当するインターフェース
