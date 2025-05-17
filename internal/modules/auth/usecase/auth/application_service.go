@@ -1,16 +1,15 @@
 package authService
 
 import (
+	"auth-service/internal/domain/entity"
 	"context"
 	"errors"
 	"time"
 
-	"auth-service/internal/domain/entity"
-	tokenService "auth-service/internal/usecase/token"
-	userService "auth-service/internal/usecase/user"
+	tokenService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/token"
+	userService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/user"
 
-	"auth-service/pkg/utils"
-	// "auth-service/pkg/token"
+	"github.com/hryt430/Yotei+/pkg/utils"
 
 	"github.com/google/uuid"
 )

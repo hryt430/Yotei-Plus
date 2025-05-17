@@ -1,9 +1,10 @@
 package middleware
 
 import (
-	"auth-service/pkg/utils"
 	"net/http"
 	"time"
+
+	"github.com/hryt430/Yotei+/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 )

@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
-	tokenService "auth-service/internal/usecase/token"
-	"auth-service/pkg/token"
-	"auth-service/pkg/utils"
+	tokenService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/token"
+	"github.com/hryt430/Yotei+/pkg/token"
+	"github.com/hryt430/Yotei+/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 )
