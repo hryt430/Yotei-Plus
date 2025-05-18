@@ -3,7 +3,6 @@ package databaseInfra
 import (
 	"database/sql"
 	"fmt"
-	"os"
 
 	"github.com/hryt430/Yotei+/config"
 	"github.com/hryt430/Yotei+/internal/modules/auth/interface/database"
@@ -13,34 +12,27 @@ type SqlHandler struct {
 	Conn *sql.DB
 }
 
-func NewSqlHandler() database.SqlHandler {
+// インターフェースは既存のまま維持する想定
+
+func NewSqlHandler() SqlHandler {
 	config, err := config.LoadConfig(".")
-	dsn := config.GetDSN()
-	conn, err := sql.Open("mysql", dsn)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	// DB接続が確立できてるかを確認
-	if err := conn.Ping(); err != nil {
-		panic(err.Error())
-	}
-
-	fmt.Println("✅ DB接続成功しました!")
-
-	sqlBytes, err := os.ReadFile("mysql/init.sql")
+	// common/databaseのハンドラーを取得
+	commonHandler, err := commonDB.NewMySQLHandler(config)
 	if err != nil {
-		fmt.Printf("❌ SQL読み取り失敗: %v", err)
+		panic(err.Error()) // または既存の処理に合わせたエラーハンドリング
 	}
 
-	if _, err := conn.Exec(string(sqlBytes)); err != nil {
-		fmt.Printf("❌ SQL実行失敗: %v", err)
-	}
-
+	// common/databaseのコネクションを取得して、infrastructure側のSqlHandlerに設定
 	sqlHandler := new(SqlHandler)
-	sqlHandler.Conn = conn
-	return sqlHandler
+	sqlHandler.Conn = commonHandler.(*commonDB.MySQLHandler).Conn
+
+	return *sqlHandler
 }
+
 func (h *SqlHandler) Execute(statement string, args ...interface{}) (database.Result, error) {
 	res, err := h.Conn.Exec(statement, args...)
 	if err != nil {
