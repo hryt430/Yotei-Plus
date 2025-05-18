@@ -37,11 +37,11 @@ func NewInMemoryMessageBroker(logger logger.Logger) MessageBroker {
 
 // Publish はトピックにメッセージを公開する
 func (b *InMemoryMessageBroker) Publish(ctx context.Context, topic string, message []byte) error {
-	b.logger.Info("Publishing message", "topic", topic, "size", len(message))
+	b.logger.Info("Publishing message", logger.Any("topic", topic), logger.Any("size", len(message)))
 
 	for _, handler := range b.subscribers[topic] {
 		if err := handler(message); err != nil {
-			b.logger.Error("Error handling message", "topic", topic, "error", err)
+			b.logger.Error("Error handling message", logger.Any("topic", topic), logger.Any("error", err))
 		}
 	}
 
@@ -50,7 +50,7 @@ func (b *InMemoryMessageBroker) Publish(ctx context.Context, topic string, messa
 
 // Subscribe はトピックからメッセージを購読する
 func (b *InMemoryMessageBroker) Subscribe(ctx context.Context, topic string, handler func([]byte) error) error {
-	b.logger.Info("Subscribing to topic", "topic", topic)
+	b.logger.Info("Subscribing to topic", logger.Any("topic", topic))
 	b.subscribers[topic] = append(b.subscribers[topic], handler)
 	return nil
 }

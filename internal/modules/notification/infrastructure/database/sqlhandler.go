@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -53,18 +54,39 @@ func (handler *SqlHandler) Execute(statement string, args ...interface{}) (datab
 	return res, nil
 }
 
-func (handler *SqlHandler) Query(statement string, args ...interface{}) (database.Row, error) {
+func (handler *SqlHandler) Query(statement string, args ...interface{}) (database.Rows, error) {
 	rows, err := handler.Conn.Query(statement, args...)
 	if err != nil {
-		return new(SqlRow), err
+		return new(SqlRows), err
 	}
-	row := new(SqlRow)
-	row.Rows = rows
-	return row, nil
+	rowsStruct := new(SqlRows)
+	rowsStruct.Rows = rows
+	return rowsStruct, nil
 }
 
 func (handler *SqlHandler) Close() error {
 	return handler.Conn.Close()
+}
+
+func (handler *SqlHandler) ExecContext(ctx context.Context, query string, args ...interface{}) (database.Result, error) {
+	result, err := handler.Conn.ExecContext(ctx, query, args...)
+	if err != nil {
+		return new(SqlResult), err
+	}
+	return &SqlResult{Result: result}, nil
+}
+
+func (handler *SqlHandler) QueryContext(ctx context.Context, query string, args ...interface{}) (database.Rows, error) {
+	rows, err := handler.Conn.QueryContext(ctx, query, args...)
+	if err != nil {
+		return new(SqlRows), err
+	}
+	return &SqlRows{Rows: rows}, nil
+}
+
+func (handler *SqlHandler) QueryRowContext(ctx context.Context, query string, args ...interface{}) database.Row {
+	row := handler.Conn.QueryRowContext(ctx, query, args...)
+	return &SqlRow{Row: row}
 }
 
 type SqlResult struct {
@@ -79,18 +101,30 @@ func (r SqlResult) RowsAffected() (int64, error) {
 	return r.Result.RowsAffected()
 }
 
-type SqlRow struct {
+type SqlRows struct {
 	Rows *sql.Rows
 }
 
-func (r SqlRow) Scan(dest ...interface{}) error {
+func (r SqlRows) Scan(dest ...interface{}) error {
 	return r.Rows.Scan(dest...)
 }
 
-func (r SqlRow) Next() bool {
+func (r SqlRows) Next() bool {
 	return r.Rows.Next()
 }
 
-func (r SqlRow) Close() error {
+func (r SqlRows) Close() error {
 	return r.Rows.Close()
+}
+
+func (r SqlRows) Err() error {
+	return r.Rows.Err()
+}
+
+type SqlRow struct {
+	Row *sql.Row
+}
+
+func (r SqlRow) Scan(dest ...interface{}) error {
+	return r.Row.Scan(dest...)
 }

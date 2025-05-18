@@ -28,14 +28,14 @@ func NewNotificationController(useCase input.NotificationUseCase, logger logger.
 func (c *NotificationController) CreateNotification(ctx *gin.Context) {
 	var createInput input.CreateNotificationInput
 	if err := ctx.ShouldBindJSON(&createInput); err != nil {
-		c.logger.Error("Invalid request body", "error", err)
+		c.logger.Error("Invalid request body", logger.Error(err))
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
 	notification, err := c.notificationUseCase.CreateNotification(ctx, createInput)
 	if err != nil {
-		c.logger.Error("Failed to create notification", "error", err)
+		c.logger.Error("Failed to create notification", logger.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create notification"})
 		return
 	}
@@ -53,7 +53,7 @@ func (c *NotificationController) GetNotification(ctx *gin.Context) {
 
 	notification, err := c.notificationUseCase.GetNotification(ctx, id)
 	if err != nil {
-		c.logger.Error("Failed to get notification", "id", id, "error", err)
+		c.logger.Error("Failed to get notification", logger.Any("userID", id), logger.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get notification"})
 		return
 	}
@@ -96,7 +96,7 @@ func (c *NotificationController) GetUserNotifications(ctx *gin.Context) {
 
 	notifications, err := c.notificationUseCase.GetUserNotifications(ctx, input)
 	if err != nil {
-		c.logger.Error("Failed to get user notifications", "userID", userID, "error", err)
+		c.logger.Error("Failed to get user notifications", logger.Any("userID", userID), logger.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user notifications"})
 		return
 	}
@@ -114,7 +114,7 @@ func (c *NotificationController) SendNotification(ctx *gin.Context) {
 
 	err := c.notificationUseCase.SendNotification(ctx, id)
 	if err != nil {
-		c.logger.Error("Failed to send notification", "id", id, "error", err)
+		c.logger.Error("Failed to send notification", logger.Any("userID", id), logger.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send notification"})
 		return
 	}
@@ -132,7 +132,7 @@ func (c *NotificationController) MarkNotificationAsRead(ctx *gin.Context) {
 
 	err := c.notificationUseCase.MarkNotificationAsRead(ctx, id)
 	if err != nil {
-		c.logger.Error("Failed to mark notification as read", "id", id, "error", err)
+		c.logger.Error("Failed to mark notification as read", logger.Any("userID", id), logger.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark notification as read"})
 		return
 	}
@@ -150,7 +150,7 @@ func (c *NotificationController) GetUnreadNotificationCount(ctx *gin.Context) {
 
 	count, err := c.notificationUseCase.GetUnreadNotificationCount(ctx, userID)
 	if err != nil {
-		c.logger.Error("Failed to get unread notification count", "userID", userID, "error", err)
+		c.logger.Error("Failed to get unread notification count", logger.Any("userID", userID), logger.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get unread notification count"})
 		return
 	}

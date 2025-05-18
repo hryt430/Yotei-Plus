@@ -47,7 +47,7 @@ func NewLineGateway(config *config.Config, logger logger.Logger) output.LineNoti
 func (g *LineGateway) SendNotification(ctx context.Context, userID, title, message string, metadata map[string]string) error {
 	lineUserID, ok := metadata["line_user_id"]
 	if !ok {
-		g.logger.Warn("LINE user ID not found in metadata", "userID", userID)
+		g.logger.Warn("LINE user ID not found in metadata", logger.Any("userID", userID))
 		return nil // LINEユーザーIDがない場合は何もしない
 	}
 
@@ -73,14 +73,14 @@ func (g *LineGateway) SendLineNotification(ctx context.Context, lineUserID, mess
 	// JSONに変換
 	jsonData, err := json.Marshal(lineMsg)
 	if err != nil {
-		g.logger.Error("Failed to marshal LINE message", "error", err)
+		g.logger.Error("Failed to marshal LINE message", logger.Error(err))
 		return fmt.Errorf("failed to marshal LINE message: %w", err)
 	}
 
 	// リクエストの作成
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		g.logger.Error("Failed to create HTTP request", "error", err)
+		g.logger.Error("Failed to create HTTP request", logger.Error(err))
 		return fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
@@ -91,17 +91,17 @@ func (g *LineGateway) SendLineNotification(ctx context.Context, lineUserID, mess
 	// リクエストの送信
 	resp, err := g.httpClient.Do(req)
 	if err != nil {
-		g.logger.Error("Failed to send LINE notification", "error", err)
+		g.logger.Error("Failed to send LINE notification", logger.Error(err))
 		return fmt.Errorf("failed to send LINE notification: %w", err)
 	}
 	defer resp.Body.Close()
 
 	// レスポンスの確認
 	if resp.StatusCode != http.StatusOK {
-		g.logger.Error("LINE API returned non-OK status", "status", resp.Status)
+		g.logger.Error("LINE API returned non-OK status", logger.Any("status", resp.Status))
 		return fmt.Errorf("LINE API returned non-OK status: %s", resp.Status)
 	}
 
-	g.logger.Info("Successfully sent LINE notification", "lineUserID", lineUserID)
+	g.logger.Info("Successfully sent LINE notification", logger.Any("lineUserID", lineUserID))
 	return nil
 }

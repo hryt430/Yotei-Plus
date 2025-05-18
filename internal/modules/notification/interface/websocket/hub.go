@@ -10,7 +10,7 @@ import (
 // Hub はWebSocketクライアントを管理するハブ
 type Hub struct {
 	// クライアントマップ（キー：ユーザーID）
-	clients   map[uint]map[*Client]bool
+	clients   map[string]map[*Client]bool
 	clientsMu sync.RWMutex
 
 	// クライアント登録チャネル
@@ -26,7 +26,7 @@ type Hub struct {
 // NewHub はWebSocketハブを作成する
 func NewHub() *Hub {
 	return &Hub{
-		clients:    make(map[uint]map[*Client]bool),
+		clients:    make(map[string]map[*Client]bool),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		broadcast:  make(chan *domain.Notification),
@@ -61,7 +61,7 @@ func (h *Hub) Run() {
 		case notification := <-h.broadcast:
 			// 通知対象ユーザーのクライアント全てに送信
 			h.clientsMu.RLock()
-			if clients, ok := h.clients[domain.Notification.UserID]; ok {
+			if clients, ok := h.clients[notification.UserID]; ok {
 				notificationJSON, err := json.Marshal(notification)
 				if err != nil {
 					continue
