@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hryt430/task-management/internal/modules/task/domain"
+	"github.com/hryt430/Yotei+/internal/modules/task/domain"
 )
 
 // EventType はイベントの種類を表す型
