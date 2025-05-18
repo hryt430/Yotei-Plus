@@ -15,7 +15,7 @@ type Channel interface {
 
 // AppChannel はアプリ内通知チャネル
 type AppChannel struct {
-	UserID uint
+	UserID string
 }
 
 // GetType はチャネルタイプを返す
@@ -24,7 +24,7 @@ func (c *AppChannel) GetType() ChannelType {
 }
 
 // NewAppChannel は新しいアプリ内通知チャネルを作成する
-func NewAppChannel(userID uint) *AppChannel {
+func NewAppChannel(userID string) *AppChannel {
 	return &AppChannel{
 		UserID: userID,
 	}
@@ -32,7 +32,7 @@ func NewAppChannel(userID uint) *AppChannel {
 
 // LineChannel はLINE通知チャネル
 type LineChannel struct {
-	UserID      uint
+	UserID      string
 	LineUserID  string // LINEユーザーID
 	AccessToken string // LINEアクセストークン
 }
@@ -43,7 +43,7 @@ func (c *LineChannel) GetType() ChannelType {
 }
 
 // NewLineChannel は新しいLINE通知チャネルを作成する
-func NewLineChannel(userID uint, lineUserID, accessToken string) *LineChannel {
+func NewLineChannel(userID, lineUserID, accessToken string) *LineChannel {
 	return &LineChannel{
 		UserID:      userID,
 		LineUserID:  lineUserID,
