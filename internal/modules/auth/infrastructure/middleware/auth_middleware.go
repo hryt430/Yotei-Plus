@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	commonMiddleware "github.com/hryt430/Yotei+/common/middleware"
 	tokenService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/token"
 	"github.com/hryt430/Yotei+/pkg/token"
 	"github.com/hryt430/Yotei+/pkg/utils"
@@ -92,3 +93,15 @@ func (m *AuthMiddleware) RoleRequired(role string) gin.HandlerFunc {
 		ctx.Next()
 	}
 }
+
+// CORS、CSRF関連のミドルウェアは共通パッケージから参照
+var (
+	// CORSMiddleware は共通ミドルウェアのCORSMiddlewareを参照
+	CORSMiddleware = commonMiddleware.CORSMiddleware
+
+	// CSRFProtection は共通ミドルウェアのCSRFProtectionを参照
+	CSRFProtection = commonMiddleware.CSRFProtection
+
+	// SetCSRFToken は共通ミドルウェアのSetCSRFTokenを参照
+	SetCSRFToken = commonMiddleware.SetCSRFToken
+)

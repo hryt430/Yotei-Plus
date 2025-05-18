@@ -1,10 +1,11 @@
 package authService
 
 import (
-	"auth-service/internal/domain/entity"
 	"context"
 	"errors"
 	"time"
+
+	"github.com/hryt430/Yotei+/internal/modules/auth/domain"
 
 	tokenService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/token"
 	userService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/user"
@@ -35,7 +36,7 @@ func NewAuthUseCase(
 	}
 }
 
-func (a *authUseCase) Register(ctx context.Context, email, username, password string) (*entity.User, error) {
+func (a *authUseCase) Register(ctx context.Context, email, username, password string) (*domain.User, error) {
 	// メールアドレスの重複チェック
 	existingUser, err := a.userRepo.FindUserByEmail(ctx, email)
 	if err == nil && existingUser != nil {
@@ -48,7 +49,7 @@ func (a *authUseCase) Register(ctx context.Context, email, username, password st
 		return nil, err
 	}
 
-	user := &entity.User{
+	user := &domain.User{
 		ID:        uuid.New(),
 		Email:     email,
 		Username:  username,

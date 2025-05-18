@@ -6,6 +6,7 @@ import (
 	"time"
 
 	authService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/auth"
+	"github.com/hryt430/Yotei+/pkg/logger"
 	"github.com/hryt430/Yotei+/pkg/utils"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +14,7 @@ import (
 
 type AuthController struct {
 	authUseCase authService.AuthUseCase
+	logger      logger.Logger
 }
 
 func NewAuthController(authUseCase authService.AuthUseCase) *AuthController {
@@ -172,46 +174,48 @@ func (c *AuthController) Logout(ctx *gin.Context) {
 	authHeader := ctx.GetHeader("Authorization")
 	accessToken := ""
 
-	// ヘッダーからトークン取得がなければCookieから
-	if authHeader == "" {
+	// ヘッダーからトークン取得
+	if authHeader != "" {
+		// Bearer トークンから抽出
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			accessToken = strings.TrimPrefix(authHeader, "Bearer ")
+		}
+	} else {
+		// ヘッダーにない場合はCookieから取得
 		var err error
 		accessToken, err = ctx.Cookie("access_token")
 		if err != nil {
-			// アクセストークンが
-		} else {
-			// Bearer トークンから抽出
-			if strings.HasPrefix(authHeader, "Bearer ") {
-				accessToken = strings.TrimPrefix(authHeader, "Bearer ")
-			}
+			// アクセストークンが見つからない場合でも処理を続行
+			c.logger.Warn("Access token not found in cookie", logger.Error(err))
 		}
+	}
 
-		// リフレッシュトークンをリクエストボディまたはCookieから取得
-		var req LogoutRequest
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			// Cookieからリフレッシュトークンを取得
-			refreshToken, err := ctx.Cookie("refresh_token")
-			if err != nil {
-				ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Refresh token is required"))
-				return
-			}
-			req.RefreshToken = refreshToken
-		}
-
-		// ログアウト処理
-		if err := c.authUseCase.Logout(ctx, accessToken, req.RefreshToken); err != nil {
-			ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to logout"))
+	// リフレッシュトークンをリクエストボディまたはCookieから取得
+	var req LogoutRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		// Cookieからリフレッシュトークンを取得
+		refreshToken, err := ctx.Cookie("refresh_token")
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Refresh token is required"))
 			return
 		}
-
-		// Cookieを削除
-		ctx.SetCookie("access_token", "", -1, "/", "", true, true)
-		ctx.SetCookie("refresh_token", "", -1, "/", "", true, true)
-
-		ctx.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "Logged out successfully",
-		})
+		req.RefreshToken = refreshToken
 	}
+
+	// ログアウト処理
+	if err := c.authUseCase.Logout(ctx, accessToken, req.RefreshToken); err != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to logout"))
+		return
+	}
+
+	// Cookieを削除
+	ctx.SetCookie("access_token", "", -1, "/", "", true, true)
+	ctx.SetCookie("refresh_token", "", -1, "/", "", true, true)
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Logged out successfully",
+	})
 }
 
 // ユーザー情報取得API (認証済みユーザー用)
