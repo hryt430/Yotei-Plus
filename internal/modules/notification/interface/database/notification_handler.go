@@ -8,29 +8,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hryt430/task-management/pkg/logger"
-
-	"github.com/hryt430/task-management/internal/modules/notification/domain"
-	"github.com/hryt430/task-management/internal/modules/notification/infrastructure/db"
-	"github.com/hryt430/task-management/internal/modules/notification/usecase/persistence"
+	"github.com/hryt430/Yotei+/internal/modules/notification/domain"
 )
 
-// SQLNotificationRepository はSQLを使用した通知リポジトリの実装
-type SQLNotificationRepository struct {
-	db     *db.Database
-	logger logger.Logger
-}
-
-// NewSQLNotificationRepository は新しいSQLNotificationRepositoryを作成する
-func NewSQLNotificationRepository(db *db.Database, logger logger.Logger) persistence.NotificationRepository {
-	return &SQLNotificationRepository{
-		db:     db,
-		logger: logger,
-	}
+// NotificationServiceRepository はSQLを使用した通知リポジトリの実装
+type NotificationServiceRepository struct {
+	SqlHandler
 }
 
 // Save は通知を保存する
-func (r *SQLNotificationRepository) Save(ctx context.Context, notification *domain.Notification) error {
+func (r *NotificationServiceRepository) Save(ctx context.Context, notification *domain.Notification) error {
 	// メタデータをJSON文字列に変換
 	metadataJSON, err := json.Marshal(notification.Metadata)
 	if err != nil {
@@ -64,7 +51,7 @@ func (r *SQLNotificationRepository) Save(ctx context.Context, notification *doma
 			sent_at = $10
 	`
 
-	_, err = r.db.ExecContext(
+	_, err = r.ExecContext(
 		ctx,
 		query,
 		notification.ID,
@@ -88,7 +75,7 @@ func (r *SQLNotificationRepository) Save(ctx context.Context, notification *doma
 }
 
 // FindByID は指定されたIDの通知を取得する
-func (r *SQLNotificationRepository) FindByID(ctx context.Context, id string) (*domain.Notification, error) {
+func (r *NotificationServiceRepository) FindByID(ctx context.Context, id string) (*domain.Notification, error) {
 	query := `
 		SELECT 
 			id, user_id, title, message, type, status, metadata, created_at, updated_at, sent_at
@@ -104,7 +91,7 @@ func (r *SQLNotificationRepository) FindByID(ctx context.Context, id string) (*d
 		sentAt       sql.NullTime
 	)
 
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+	err := r.QueryRowContext(ctx, query, id).Scan(
 		&notification.ID,
 		&notification.UserID,
 		&notification.Title,
@@ -140,7 +127,7 @@ func (r *SQLNotificationRepository) FindByID(ctx context.Context, id string) (*d
 }
 
 // FindByUserID は指定されたユーザーIDの通知を取得する
-func (r *SQLNotificationRepository) FindByUserID(ctx context.Context, userID string, limit, offset int) ([]*domain.Notification, error) {
+func (r *NotificationServiceRepository) FindByUserID(ctx context.Context, userID string, limit, offset int) ([]*domain.Notification, error) {
 	query := `
 		SELECT 
 			id, user_id, title, message, type, status, metadata, created_at, updated_at, sent_at
@@ -209,7 +196,7 @@ func (r *SQLNotificationRepository) FindByUserID(ctx context.Context, userID str
 }
 
 // UpdateStatus は通知のステータスを更新する
-func (r *SQLNotificationRepository) UpdateStatus(ctx context.Context, id string, status domain.NotificationStatus) error {
+func (r *NotificationServiceRepository) UpdateStatus(ctx context.Context, id string, status domain.NotificationStatus) error {
 	query := `
 		UPDATE notifications
 		SET 
@@ -249,7 +236,7 @@ func (r *SQLNotificationRepository) UpdateStatus(ctx context.Context, id string,
 }
 
 // CountByUserIDAndStatus はユーザーIDとステータスに基づいて通知数を取得する
-func (r *SQLNotificationRepository) CountByUserIDAndStatus(ctx context.Context, userID string, status domain.NotificationStatus) (int, error) {
+func (r *NotificationServiceRepository) CountByUserIDAndStatus(ctx context.Context, userID string, status domain.NotificationStatus) (int, error) {
 	query := `
 		SELECT COUNT(*)
 		FROM notifications
@@ -267,7 +254,7 @@ func (r *SQLNotificationRepository) CountByUserIDAndStatus(ctx context.Context, 
 }
 
 // FindPendingNotifications は保留中の通知を取得する
-func (r *SQLNotificationRepository) FindPendingNotifications(ctx context.Context, limit int) ([]*domain.Notification, error) {
+func (r *NotificationServiceRepository) FindPendingNotifications(ctx context.Context, limit int) ([]*domain.Notification, error) {
 	query := `
 		SELECT 
 			id, user_id, title, message, type, status, metadata, created_at, updated_at, sent_at
@@ -280,7 +267,7 @@ func (r *SQLNotificationRepository) FindPendingNotifications(ctx context.Context
 		LIMIT $2
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, domain.StatusPending, limit)
+	rows, err := r.QueryContext(ctx, query, domain.StatusPending, limit)
 	if err != nil {
 		r.logger.Error("Failed to query pending notifications", "error", err)
 		return nil, fmt.Errorf("failed to query pending notifications: %w", err)

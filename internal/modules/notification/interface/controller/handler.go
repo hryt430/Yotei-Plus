@@ -6,9 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/hryt430/task-management/pkg/logger"
-
-	"github.com/hryt430/task-management/internal/modules/notification/usecase/input"
+	"github.com/hryt430/Yotei+/internal/modules/notification/usecase/input"
+	"github.com/hryt430/Yotei+/pkg/logger"
 )
 
 // NotificationController は通知コントローラー
@@ -165,4 +164,18 @@ func (c *NotificationController) WebhookHandler(ctx *gin.Context) {
 	// ...
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "Webhook received"})
+}
+
+// RegisterRoutes は通知コントローラーのルートを登録する
+func RegisterNotificationRoutes(router *gin.RouterGroup, controller *NotificationController) {
+	notifications := router.Group("/notifications")
+	{
+		notifications.POST("", controller.CreateNotification)
+		notifications.GET("/:id", controller.GetNotification)
+		notifications.GET("/user/:user_id", controller.GetUserNotifications)
+		notifications.POST("/:id/send", controller.SendNotification)
+		notifications.PUT("/:id/read", controller.MarkNotificationAsRead)
+		notifications.GET("/user/:user_id/unread/count", controller.GetUnreadNotificationCount)
+		notifications.POST("/webhook", controller.WebhookHandler)
+	}
 }

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"sync"
 
-	"your-app/notification/domain/entity"
+	"github.com/hryt430/Yotei+/internal/modules/notification/domain"
 )
 
 // Hub はWebSocketクライアントを管理するハブ
@@ -20,7 +20,7 @@ type Hub struct {
 	unregister chan *Client
 
 	// 通知送信チャネル
-	broadcast chan *entity.Notification
+	broadcast chan *domain.Notification
 }
 
 // NewHub はWebSocketハブを作成する
@@ -29,7 +29,7 @@ func NewHub() *Hub {
 		clients:    make(map[uint]map[*Client]bool),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
-		broadcast:  make(chan *entity.Notification),
+		broadcast:  make(chan *domain.Notification),
 	}
 }
 
@@ -61,7 +61,7 @@ func (h *Hub) Run() {
 		case notification := <-h.broadcast:
 			// 通知対象ユーザーのクライアント全てに送信
 			h.clientsMu.RLock()
-			if clients, ok := h.clients[notification.UserID]; ok {
+			if clients, ok := h.clients[domain.Notification.UserID]; ok {
 				notificationJSON, err := json.Marshal(notification)
 				if err != nil {
 					continue
@@ -82,6 +82,6 @@ func (h *Hub) Run() {
 }
 
 // SendNotification は指定ユーザーに通知を送信する
-func (h *Hub) SendNotification(notification *entity.Notification) {
+func (h *Hub) SendNotification(notification *domain.Notification) {
 	h.broadcast <- notification
 }

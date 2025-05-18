@@ -3,7 +3,6 @@ package websocket
 import (
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -34,7 +33,7 @@ type Client struct {
 	hub    *Hub
 	conn   *websocket.Conn
 	send   chan []byte
-	UserID uint
+	UserID string
 }
 
 // ReadPump はクライアントからのメッセージ読み取りループ
@@ -119,13 +118,6 @@ func ServeWs(hub *Hub) gin.HandlerFunc {
 			return
 		}
 
-		// ユーザーIDを数値に変換
-		uid64, err := strconv.ParseUint(userID, 10, 32)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
-			return
-		}
-
 		// WebSocketにアップグレード
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
@@ -138,7 +130,7 @@ func ServeWs(hub *Hub) gin.HandlerFunc {
 			hub:    hub,
 			conn:   conn,
 			send:   make(chan []byte, 256),
-			UserID: uint(uid64),
+			UserID: userID,
 		}
 		client.hub.register <- client
 
