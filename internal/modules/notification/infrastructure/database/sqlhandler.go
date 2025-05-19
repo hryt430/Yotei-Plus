@@ -3,12 +3,11 @@ package database
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"os"
 
 	_ "github.com/go-sql-driver/mysql"
 
 	"github.com/hryt430/Yotei+/config"
+	commonDB "github.com/hryt430/Yotei+/internal/common/infrastructure/database"
 	"github.com/hryt430/Yotei+/internal/modules/notification/interface/database"
 )
 
@@ -16,32 +15,21 @@ type SqlHandler struct {
 	Conn *sql.DB
 }
 
-func NewSqlHandler() database.SqlHandler {
-	dsn := config.GetDSN()
-	conn, err := sql.Open("mysql", dsn)
+func NewSqlHandler() SqlHandler {
+	config, err := config.LoadConfig(".")
 	if err != nil {
 		panic(err.Error())
 	}
 
-	// DB接続が確立できてるかを確認
-	if err := conn.Ping(); err != nil {
-		panic(err.Error())
-	}
-
-	fmt.Println("✅ DB接続成功しました!")
-
-	sqlBytes, err := os.ReadFile("mysql/init.sql")
+	// common/databaseからDBコネクションを取得
+	conn, err := commonDB.NewMySQLConnection(config)
 	if err != nil {
-		fmt.Printf("❌ SQL読み取り失敗: %v", err)
-	}
-
-	if _, err := conn.Exec(string(sqlBytes)); err != nil {
-		fmt.Printf("❌ SQL実行失敗: %v", err)
+		panic(err.Error())
 	}
 
 	sqlHandler := new(SqlHandler)
 	sqlHandler.Conn = conn
-	return sqlHandler
+	return *sqlHandler
 }
 
 func (handler *SqlHandler) Execute(statement string, args ...interface{}) (database.Result, error) {
