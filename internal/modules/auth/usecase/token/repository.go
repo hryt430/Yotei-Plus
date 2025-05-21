@@ -5,7 +5,7 @@ import (
 	"github.com/hryt430/Yotei+/pkg/token"
 )
 
-type TokenUseCase interface {
+type ITokenRepository interface {
 	GenerateAccessToken(user *domain.User) (string, error)
 	GenerateRefreshToken(user *domain.User) (string, error)
 	ValidateAccessToken(tokenString string) (*token.Claims, error)

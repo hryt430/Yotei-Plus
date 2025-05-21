@@ -1,7 +1,6 @@
 package tokenService
 
 import (
-	"context"
 	"time"
 
 	"github.com/hryt430/Yotei+/internal/modules/auth/domain"
@@ -12,22 +11,22 @@ import (
 	"github.com/google/uuid"
 )
 
-type tokenUseCase struct {
-	userRepo             userService.UserRepository
+type TokenService struct {
+	userRepo             userService.IUserRepository
 	jwtManager           *token.JWTManager
 	blacklist            *token.TokenBlacklist
 	tokenDuration        time.Duration
 	refreshTokenDuration time.Duration
 }
 
-func NewTokenUseCase(
-	userRepo userService.UserRepository,
+func NewTokenService(
+	userRepo userService.IUserRepository,
 	jwtManager *token.JWTManager,
 	blacklist *token.TokenBlacklist,
 	tokenDuration time.Duration,
 	refreshTokenDuration time.Duration,
-) TokenUseCase {
-	return &tokenUseCase{
+) *TokenService {
+	return &TokenService{
 		userRepo:             userRepo,
 		jwtManager:           jwtManager,
 		blacklist:            blacklist,
@@ -36,7 +35,7 @@ func NewTokenUseCase(
 	}
 }
 
-func (t *tokenUseCase) GenerateAccessToken(user *domain.User) (string, error) {
+func (t *TokenService) GenerateAccessToken(user *domain.User) (string, error) {
 	// JWTトークン生成
 	claims := &token.Claims{
 		UserID:   user.ID.String(),
@@ -48,7 +47,7 @@ func (t *tokenUseCase) GenerateAccessToken(user *domain.User) (string, error) {
 	return t.jwtManager.Generate(claims, t.tokenDuration)
 }
 
-func (t *tokenUseCase) GenerateRefreshToken(user *domain.User) (string, error) {
+func (t *TokenService) GenerateRefreshToken(user *domain.User) (string, error) {
 	// ランダムなリフレッシュトークン生成
 	refreshTokenStr, err := t.jwtManager.GenerateRefreshToken()
 	if err != nil {
@@ -66,15 +65,14 @@ func (t *tokenUseCase) GenerateRefreshToken(user *domain.User) (string, error) {
 		UpdatedAt: time.Now(),
 	}
 
-	ctx := context.Background()
-	if err := t.userRepo.SaveRefreshToken(ctx, refreshToken); err != nil {
+	if err := t.userRepo.SaveRefreshToken(refreshToken); err != nil {
 		return "", err
 	}
 
 	return refreshTokenStr, nil
 }
 
-func (t *tokenUseCase) ValidateAccessToken(tokenString string) (*token.Claims, error) {
+func (t *TokenService) ValidateAccessToken(tokenString string) (*token.Claims, error) {
 	// トークンがブラックリストにないか確認
 	if t.blacklist.IsTokenBlacklisted(tokenString) {
 		return nil, token.ErrTokenBlacklisted
@@ -84,7 +82,7 @@ func (t *tokenUseCase) ValidateAccessToken(tokenString string) (*token.Claims, e
 	return t.jwtManager.Verify(tokenString)
 }
 
-func (t *tokenUseCase) RevokeAccessToken(tokenString string) error {
+func (t *TokenService) RevokeAccessToken(tokenString string) error {
 	// トークンをブラックリストに追加
 	claims, err := t.jwtManager.ExtractWithoutValidation(tokenString)
 	if err != nil {
@@ -101,6 +99,6 @@ func (t *tokenUseCase) RevokeAccessToken(tokenString string) error {
 	return t.blacklist.AddToBlacklist(tokenString, ttl)
 }
 
-func (t *tokenUseCase) IsTokenRevoked(tokenString string) bool {
+func (t *TokenService) IsTokenRevoked(tokenString string) bool {
 	return t.blacklist.IsTokenBlacklisted(tokenString)
 }
