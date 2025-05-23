@@ -11,8 +11,4 @@ type IUserRepository interface {
 	FindUserByEmail(email string) (*domain.User, error)
 	FindUserByID(id uuid.UUID) (*domain.User, error)
 	UpdateUser(user *domain.User) error
-	SaveRefreshToken(token *domain.RefreshToken) error
-	FindRefreshToken(token string) (*domain.RefreshToken, error)
-	RevokeRefreshToken(token string) error
-	DeleteExpiredRefreshTokens() error
 }

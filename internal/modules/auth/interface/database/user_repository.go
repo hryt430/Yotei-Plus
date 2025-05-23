@@ -1,7 +1,6 @@
 package database
 
 import (
-	"context"
 	"time"
 
 	"github.com/hryt430/Yotei+/internal/modules/auth/domain"
@@ -9,17 +8,17 @@ import (
 	"github.com/google/uuid"
 )
 
-type UserServiceRepository struct {
+type IUserRepository struct {
 	SqlHandler
 }
 
-func (r *UserServiceRepository) CreateUser(ctx context.Context, user *domain.User) error {
+func (r *IUserRepository) CreateUser(user *domain.User) error {
 	query := "INSERT INTO users (id, name, email, password, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
 	_, err := r.Execute(query, user.ID, user.Username, user.Email, user.Password, user.CreatedAt, user.UpdatedAt)
 	return err
 }
 
-func (r *UserServiceRepository) FindUserByEmail(ctx context.Context, email string) (*domain.User, error) {
+func (r *IUserRepository) FindUserByEmail(email string) (*domain.User, error) {
 	query := "SELECT id, name, email, password, created_at, updated_at FROM users WHERE email = ? LIMIT 1"
 	row, err := r.Query(query, email)
 	if err != nil {
@@ -37,7 +36,7 @@ func (r *UserServiceRepository) FindUserByEmail(ctx context.Context, email strin
 	return &user, nil
 }
 
-func (r *UserServiceRepository) FindUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+func (r *IUserRepository) FindUserByID(id uuid.UUID) (*domain.User, error) {
 	query := "SELECT id, name, email, password, created_at, updated_at FROM users WHERE id = ? LIMIT 1"
 	row, err := r.Query(query, id)
 	if err != nil {
@@ -55,46 +54,8 @@ func (r *UserServiceRepository) FindUserByID(ctx context.Context, id uuid.UUID) 
 	return &user, nil
 }
 
-func (r *UserServiceRepository) UpdateUser(ctx context.Context, user *domain.User) error {
+func (r *IUserRepository) UpdateUser(user *domain.User) error {
 	query := "UPDATE users SET name = ?, email = ?, password = ?, updated_at = ? WHERE id = ?"
 	_, err := r.Execute(query, user.Username, user.Email, user.Password, time.Now(), user.ID)
-	return err
-}
-
-func (r *UserServiceRepository) SaveRefreshToken(ctx context.Context, token *domain.RefreshToken) error {
-	query := "INSERT INTO refresh_tokens (id, user_id, token, expires_at, created_at) VALUES (?, ?, ?, ?, ?)"
-	_, err := r.Execute(query, token.ID, token.UserID, token.Token, token.ExpiresAt, token.CreatedAt)
-	return err
-}
-
-func (r *UserServiceRepository) FindRefreshToken(ctx context.Context, token string) (*domain.RefreshToken, error) {
-	query := "SELECT id, user_id, token, expires_at, revoked_at, created_at FROM refresh_tokens WHERE token = ? LIMIT 1"
-	row, err := r.Query(query, token)
-	if err != nil {
-		return nil, err
-	}
-	defer row.Close()
-
-	var rt domain.RefreshToken
-	if !row.Next() {
-		return nil, nil
-	}
-	if err := row.Scan(&rt.ID, &rt.UserID, &rt.Token, &rt.ExpiresAt, &rt.RevokedAt, &rt.CreatedAt); err != nil {
-		return nil, err
-	}
-	return &rt, nil
-}
-
-func (r *UserServiceRepository) RevokeRefreshToken(ctx context.Context, token string) error {
-	now := time.Now()
-	query := "UPDATE refresh_tokens SET revoked_at = ? WHERE token = ?"
-	_, err := r.Execute(query, now, token)
-	return err
-}
-
-func (r *UserServiceRepository) DeleteExpiredRefreshTokens(ctx context.Context) error {
-	// 期限切れのリフレッシュトークンを削除（定期的なクリーンアップ用）
-	query := "DELETE FROM refresh_tokens WHERE expires_at < ?"
-	_, err := r.Execute(query, time.Now())
 	return err
 }
