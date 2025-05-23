@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	commonMiddleware "github.com/hryt430/Yotei+/common/middleware"
+	commonMiddleware "github.com/hryt430/Yotei+/internal/common/middleware"
 	tokenService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/token"
 	"github.com/hryt430/Yotei+/pkg/token"
 	"github.com/hryt430/Yotei+/pkg/utils"
@@ -13,10 +13,10 @@ import (
 )
 
 type AuthMiddleware struct {
-	tokenUseCase tokenService.TokenUseCase
+	tokenUseCase tokenService.TokenService
 }
 
-func NewAuthMiddleware(tokenUseCase tokenService.TokenUseCase) *AuthMiddleware {
+func NewAuthMiddleware(tokenUseCase tokenService.TokenService) *AuthMiddleware {
 	return &AuthMiddleware{
 		tokenUseCase: tokenUseCase,
 	}

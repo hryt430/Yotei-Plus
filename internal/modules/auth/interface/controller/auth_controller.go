@@ -13,13 +13,14 @@ import (
 )
 
 type AuthController struct {
-	authUseCase authService.AuthUseCase
-	logger      logger.Logger
+	Interactor authService.AuthService
+	logger     logger.Logger
 }
 
-func NewAuthController(authUseCase authService.AuthUseCase) *AuthController {
+func NewAuthController(interactor authService.AuthService, logger logger.Logger) *AuthController {
 	return &AuthController{
-		authUseCase: authUseCase,
+		Interactor: interactor,
+		logger:     logger,
 	}
 }
 
@@ -53,7 +54,7 @@ func (c *AuthController) Register(ctx *gin.Context) {
 	req.Email = strings.TrimSpace(req.Email)
 	req.Username = strings.TrimSpace(req.Username)
 
-	user, err := c.authUseCase.Register(ctx, req.Email, req.Username, req.Password)
+	user, err := c.Interactor.AuthRepository.Register(ctx, req.Email, req.Username, req.Password)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
@@ -80,7 +81,7 @@ func (c *AuthController) Login(ctx *gin.Context) {
 	// 入力値のサニタイズ
 	req.Email = strings.TrimSpace(req.Email)
 
-	accessToken, refreshToken, err := c.authUseCase.Login(ctx, req.Email, req.Password)
+	accessToken, refreshToken, err := c.Interactor.AuthRepository.Login(ctx, req.Email, req.Password)
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse("Invalid credentials"))
 		return
@@ -131,7 +132,7 @@ func (c *AuthController) RefreshToken(ctx *gin.Context) {
 		req.RefreshToken = refreshToken
 	}
 
-	newAccessToken, newRefreshToken, err := c.authUseCase.RefreshToken(ctx, req.RefreshToken)
+	newAccessToken, newRefreshToken, err := c.Interactor.RefreshToken(req.RefreshToken)
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse("Invalid or expired refresh token"))
 		return
@@ -203,7 +204,7 @@ func (c *AuthController) Logout(ctx *gin.Context) {
 	}
 
 	// ログアウト処理
-	if err := c.authUseCase.Logout(ctx, accessToken, req.RefreshToken); err != nil {
+	if err := c.Interactor.AuthRepository.Logout(ctx, accessToken, req.RefreshToken); err != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to logout"))
 		return
 	}

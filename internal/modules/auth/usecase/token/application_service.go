@@ -1,42 +1,54 @@
 package tokenService
 
 import (
-	"context"
+	"errors"
 	"time"
 
-	"github.com/hryt430/Yotei+/internal/modules/auth/domain"
-	userService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/user"
-
-	"github.com/hryt430/Yotei+/pkg/token"
-
 	"github.com/google/uuid"
+	"github.com/hryt430/Yotei+/internal/modules/auth/domain"
+	"github.com/hryt430/Yotei+/pkg/token"
 )
 
-type tokenUseCase struct {
-	userRepo             userService.UserRepository
+type TokenService struct {
+	TokenRepository      ITokenRepository
 	jwtManager           *token.JWTManager
-	blacklist            *token.TokenBlacklist
 	tokenDuration        time.Duration
 	refreshTokenDuration time.Duration
 }
 
-func NewTokenUseCase(
-	userRepo userService.UserRepository,
+func NewTokenService(
+	tokenRepository ITokenRepository,
 	jwtManager *token.JWTManager,
-	blacklist *token.TokenBlacklist,
 	tokenDuration time.Duration,
 	refreshTokenDuration time.Duration,
-) TokenUseCase {
-	return &tokenUseCase{
-		userRepo:             userRepo,
+) *TokenService {
+	return &TokenService{
+		TokenRepository:      tokenRepository,
 		jwtManager:           jwtManager,
-		blacklist:            blacklist,
 		tokenDuration:        tokenDuration,
 		refreshTokenDuration: refreshTokenDuration,
 	}
 }
 
-func (t *tokenUseCase) GenerateAccessToken(user *domain.User) (string, error) {
+func (t *TokenService) RevokeAccessToken(tokenString string) error {
+	// トークンをブラックリストに追加
+	claims, err := t.jwtManager.ExtractWithoutValidation(tokenString)
+	if err != nil {
+		return err
+	}
+
+	// 有効期限を計算
+	expirationTime := time.Unix(claims.ExpiresAt.Time.Unix(), 0)
+	ttl := time.Until(expirationTime)
+	if ttl < 0 {
+		ttl = 0
+	}
+
+	// リポジトリを使用してブラックリストに保存
+	return t.TokenRepository.SaveTokenToBlacklist(tokenString, ttl)
+}
+
+func (t *TokenService) GenerateAccessToken(user *domain.User) (string, error) {
 	// JWTトークン生成
 	claims := &token.Claims{
 		UserID:   user.ID.String(),
@@ -48,7 +60,7 @@ func (t *tokenUseCase) GenerateAccessToken(user *domain.User) (string, error) {
 	return t.jwtManager.Generate(claims, t.tokenDuration)
 }
 
-func (t *tokenUseCase) GenerateRefreshToken(user *domain.User) (string, error) {
+func (t *TokenService) GenerateRefreshToken(user *domain.User) (string, error) {
 	// ランダムなリフレッシュトークン生成
 	refreshTokenStr, err := t.jwtManager.GenerateRefreshToken()
 	if err != nil {
@@ -66,17 +78,16 @@ func (t *tokenUseCase) GenerateRefreshToken(user *domain.User) (string, error) {
 		UpdatedAt: time.Now(),
 	}
 
-	ctx := context.Background()
-	if err := t.userRepo.SaveRefreshToken(ctx, refreshToken); err != nil {
+	if err := t.TokenRepository.SaveRefreshToken(refreshToken); err != nil {
 		return "", err
 	}
 
 	return refreshTokenStr, nil
 }
 
-func (t *tokenUseCase) ValidateAccessToken(tokenString string) (*token.Claims, error) {
+func (t *TokenService) ValidateAccessToken(tokenString string) (*token.Claims, error) {
 	// トークンがブラックリストにないか確認
-	if t.blacklist.IsTokenBlacklisted(tokenString) {
+	if t.TokenRepository.IsTokenBlacklisted(tokenString) {
 		return nil, token.ErrTokenBlacklisted
 	}
 
@@ -84,23 +95,65 @@ func (t *tokenUseCase) ValidateAccessToken(tokenString string) (*token.Claims, e
 	return t.jwtManager.Verify(tokenString)
 }
 
-func (t *tokenUseCase) RevokeAccessToken(tokenString string) error {
-	// トークンをブラックリストに追加
-	claims, err := t.jwtManager.ExtractWithoutValidation(tokenString)
+// ValidateRefreshToken はリフレッシュトークンを検証する
+func (u *TokenService) ValidateRefreshToken(token string) (*domain.RefreshToken, error) {
+	refreshToken, err := u.TokenRepository.FindRefreshToken(token)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	if refreshToken == nil {
+		return nil, errors.New("refresh token not found")
 	}
 
-	// 有効期限を計算
-	expirationTime := time.Unix(claims.ExpiresAt.Time.Unix(), 0)
-	ttl := time.Until(expirationTime)
-	if ttl < 0 {
-		ttl = 0 // すでに期限切れの場合は最小値を設定
+	// トークンが取り消されていないか確認
+	if refreshToken.RevokedAt != nil {
+		return nil, errors.New("refresh token has been revoked")
 	}
 
-	return t.blacklist.AddToBlacklist(tokenString, ttl)
+	// 有効期限の確認
+	if time.Now().After(refreshToken.ExpiresAt) {
+		return nil, errors.New("refresh token has expired")
+	}
+
+	return refreshToken, nil
 }
 
-func (t *tokenUseCase) IsTokenRevoked(tokenString string) bool {
-	return t.blacklist.IsTokenBlacklisted(tokenString)
+// GenerateNewRefreshToken は新しいリフレッシュトークンを生成する
+func (u *TokenService) GenerateNewRefreshToken(userID uuid.UUID) (*domain.RefreshToken, error) {
+	// トークン文字列の生成（実際の実装では安全な方法で）
+	tokenString := uuid.New().String()
+
+	// 有効期限の設定（例: 7日間）
+	expiresAt := time.Now().Add(7 * 24 * time.Hour)
+
+	// リフレッシュトークンの作成
+	refreshToken := &domain.RefreshToken{
+		ID:        uuid.New(),
+		Token:     tokenString,
+		UserID:    userID,
+		ExpiresAt: expiresAt,
+		IssuedAt:  time.Now(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	// リフレッシュトークンの保存
+	if err := u.TokenRepository.SaveRefreshToken(refreshToken); err != nil {
+		return nil, err
+	}
+
+	return refreshToken, nil
+}
+
+// RevokeToken はトークンを無効化する
+func (u *TokenService) RevokeToken(token string) error {
+	return u.TokenRepository.RevokeRefreshToken(token)
+}
+
+// CleanupExpiredTokens は期限切れのトークンをクリーンアップする
+func (u *TokenService) CleanupExpiredTokens() error {
+	return u.TokenRepository.DeleteExpiredRefreshTokens()
+}
+func (t *TokenService) IsTokenRevoked(tokenString string) bool {
+	return t.TokenRepository.IsTokenBlacklisted(tokenString)
 }

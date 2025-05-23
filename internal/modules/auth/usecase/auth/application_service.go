@@ -1,7 +1,6 @@
 package authService
 
 import (
-	"context"
 	"errors"
 	"time"
 
@@ -15,30 +14,19 @@ import (
 	"github.com/google/uuid"
 )
 
-type authUseCase struct {
-	userRepo             userService.UserRepository
-	tokenUseCase         tokenService.TokenUseCase
-	tokenDuration        time.Duration
-	refreshTokenDuration time.Duration
+type AuthService struct {
+	AuthRepository IAuthRepository
+	UserService    userService.UserService
+	TokenService   tokenService.TokenService
 }
 
-func NewAuthUseCase(
-	userRepo userService.UserRepository,
-	tokenUseCase tokenService.TokenUseCase,
-	tokenDuration time.Duration,
-	refreshTokenDuration time.Duration,
-) AuthUseCase {
-	return &authUseCase{
-		userRepo:             userRepo,
-		tokenUseCase:         tokenUseCase,
-		tokenDuration:        tokenDuration,
-		refreshTokenDuration: refreshTokenDuration,
-	}
+func NewAuthService(authRepository IAuthRepository, userService userService.UserService, tokenService tokenService.TokenService) *AuthService {
+	return &AuthService{AuthRepository: authRepository, UserService: userService, TokenService: tokenService}
 }
 
-func (a *authUseCase) Register(ctx context.Context, email, username, password string) (*domain.User, error) {
+func (a *AuthService) Register(email, username, password string) (*domain.User, error) {
 	// メールアドレスの重複チェック
-	existingUser, err := a.userRepo.FindUserByEmail(ctx, email)
+	existingUser, err := a.UserService.FindUserByEmail(email)
 	if err == nil && existingUser != nil {
 		return nil, errors.New("email already exists")
 	}
@@ -59,15 +47,16 @@ func (a *authUseCase) Register(ctx context.Context, email, username, password st
 		UpdatedAt: time.Now(),
 	}
 
-	if err := a.userRepo.CreateUser(ctx, user); err != nil {
+	newUser, err := a.UserService.CreateUser(user)
+	if err != nil {
 		return nil, err
 	}
 
-	return user, nil
+	return newUser, nil
 }
 
-func (a *authUseCase) Login(ctx context.Context, email, password string) (string, string, error) {
-	user, err := a.userRepo.FindUserByEmail(ctx, email)
+func (a *AuthService) Login(email, password string) (string, string, error) {
+	user, err := a.UserService.FindUserByEmail(email)
 	if err != nil {
 		return "", "", err
 	}
@@ -82,19 +71,18 @@ func (a *authUseCase) Login(ctx context.Context, email, password string) (string
 	}
 
 	// 最終ログイン時間を更新
-	user.LastLogin = time.Now()
-	if err := a.userRepo.UpdateUser(ctx, user); err != nil {
+	if err := a.UserService.UpdateLastLogin(user.ID); err != nil {
 		return "", "", err
 	}
 
 	// アクセストークン生成
-	accessToken, err := a.tokenUseCase.GenerateAccessToken(user)
+	accessToken, err := a.TokenService.GenerateAccessToken(user)
 	if err != nil {
 		return "", "", err
 	}
 
 	// リフレッシュトークン生成
-	refreshTokenString, err := a.tokenUseCase.GenerateRefreshToken(user)
+	refreshTokenString, err := a.TokenService.GenerateRefreshToken(user)
 	if err != nil {
 		return "", "", err
 	}
@@ -102,9 +90,9 @@ func (a *authUseCase) Login(ctx context.Context, email, password string) (string
 	return accessToken, refreshTokenString, nil
 }
 
-func (a *authUseCase) RefreshToken(ctx context.Context, refreshTokenStr string) (string, string, error) {
+func (a *AuthService) RefreshToken(refreshTokenStr string) (string, string, error) {
 	// リフレッシュトークンの検証
-	refreshTokenEntity, err := a.userRepo.FindRefreshToken(ctx, refreshTokenStr)
+	refreshTokenEntity, err := a.TokenService.TokenRepository.FindRefreshToken(refreshTokenStr)
 	if err != nil {
 		return "", "", err
 	}
@@ -119,24 +107,24 @@ func (a *authUseCase) RefreshToken(ctx context.Context, refreshTokenStr string) 
 	}
 
 	// ユーザー取得
-	user, err := a.userRepo.FindUserByID(ctx, refreshTokenEntity.UserID)
+	user, err := a.UserService.FindUserByID(refreshTokenEntity.UserID)
 	if err != nil {
 		return "", "", err
 	}
 
 	// 新しいアクセストークン生成
-	newAccessToken, err := a.tokenUseCase.GenerateAccessToken(user)
+	newAccessToken, err := a.TokenService.GenerateAccessToken(user)
 	if err != nil {
 		return "", "", err
 	}
 
 	// 古いリフレッシュトークンを無効化
-	if err := a.userRepo.RevokeRefreshToken(ctx, refreshTokenStr); err != nil {
+	if err := a.TokenService.RevokeToken(refreshTokenStr); err != nil {
 		return "", "", err
 	}
 
 	// 新しいリフレッシュトークン生成
-	newRefreshToken, err := a.tokenUseCase.GenerateRefreshToken(user)
+	newRefreshToken, err := a.TokenService.GenerateRefreshToken(user)
 	if err != nil {
 		return "", "", err
 	}
@@ -144,14 +132,14 @@ func (a *authUseCase) RefreshToken(ctx context.Context, refreshTokenStr string) 
 	return newAccessToken, newRefreshToken, nil
 }
 
-func (a *authUseCase) Logout(ctx context.Context, accessToken, refreshToken string) error {
+func (a *AuthService) Logout(accessToken, refreshToken string) error {
 	// アクセストークンをブラックリストに追加
-	if err := a.tokenUseCase.RevokeAccessToken(accessToken); err != nil {
+	if err := a.TokenService.RevokeAccessToken(accessToken); err != nil {
 		return err
 	}
 
 	// リフレッシュトークンを無効化
-	if err := a.userRepo.RevokeRefreshToken(ctx, refreshToken); err != nil {
+	if err := a.TokenService.RevokeToken(refreshToken); err != nil {
 		return err
 	}
 

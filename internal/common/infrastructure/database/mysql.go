@@ -3,66 +3,39 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/hryt430/Yotei+/config"
 )
 
-// Config はデータベース接続設定を表します
-type Config struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	DBName   string
-}
-
-// NewMySQLConnection は新しいMySQL接続を作成します
-func NewMySQLConnection(config Config) (*sql.DB, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		config.User,
-		config.Password,
-		config.Host,
-		config.Port,
-		config.DBName,
-	)
-
-	db, err := sql.Open("mysql", dsn)
+func NewMySQLConnection(cfg *config.Config) (*sql.DB, error) {
+	dsn := cfg.GetDSN()
+	conn, err := sql.Open("mysql", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("データベース接続オープンエラー: %w", err)
+		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-
-	// 接続設定
-	db.SetMaxIdleConns(10)
-	db.SetMaxOpenConns(100)
-	db.SetConnMaxLifetime(time.Hour)
 
 	// 接続確認
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("データベース接続確認エラー: %w", err)
+	if err := conn.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return db, nil
-}
+	// コネクションプールの設定
+	conn.SetMaxOpenConns(25)
+	conn.SetMaxIdleConns(25)
+	conn.SetConnMaxLifetime(5 * time.Minute)
 
-// Transaction はトランザクションを扱うヘルパー関数です
-func Transaction(db *sql.DB, fn func(*sql.Tx) error) error {
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
+	fmt.Println("✅ DB接続成功しました!")
 
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p) // re-throw panic after Rollback
+	// 初期化スクリプトの実行（必要に応じて）
+	if initSQL, err := os.ReadFile("mysql/init.sql"); err == nil {
+		if _, err := conn.Exec(string(initSQL)); err != nil {
+			fmt.Printf("⚠️ 初期化SQLの実行に失敗しました: %v\n", err)
+			// 致命的ではないのでエラーは返さない
 		}
-	}()
-
-	if err := fn(tx); err != nil {
-		tx.Rollback()
-		return err
 	}
 
-	return tx.Commit()
+	return conn, nil
 }

@@ -1,14 +1,20 @@
 package tokenService
 
 import (
+	"time"
+
 	"github.com/hryt430/Yotei+/internal/modules/auth/domain"
-	"github.com/hryt430/Yotei+/pkg/token"
 )
 
-type TokenUseCase interface {
-	GenerateAccessToken(user *domain.User) (string, error)
-	GenerateRefreshToken(user *domain.User) (string, error)
-	ValidateAccessToken(tokenString string) (*token.Claims, error)
-	RevokeAccessToken(tokenString string) error
-	IsTokenRevoked(tokenString string) bool
+// ITokenRepository はトークンの永続化に関する操作を定義する
+type ITokenRepository interface {
+	// ブラックリスト関連
+	SaveTokenToBlacklist(token string, ttl time.Duration) error
+	IsTokenBlacklisted(token string) bool
+
+	// リフレッシュトークン関連
+	SaveRefreshToken(token *domain.RefreshToken) error
+	FindRefreshToken(token string) (*domain.RefreshToken, error)
+	RevokeRefreshToken(token string) error
+	DeleteExpiredRefreshTokens() error
 }
