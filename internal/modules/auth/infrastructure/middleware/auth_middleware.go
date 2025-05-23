@@ -13,10 +13,10 @@ import (
 )
 
 type AuthMiddleware struct {
-	tokenUseCase tokenService.TokenUseCase
+	tokenUseCase tokenService.TokenService
 }
 
-func NewAuthMiddleware(tokenUseCase tokenService.TokenUseCase) *AuthMiddleware {
+func NewAuthMiddleware(tokenUseCase tokenService.TokenService) *AuthMiddleware {
 	return &AuthMiddleware{
 		tokenUseCase: tokenUseCase,
 	}
