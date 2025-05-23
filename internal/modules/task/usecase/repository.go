@@ -1,4 +1,4 @@
-package management
+package usecase
 
 import (
 	"context"
@@ -8,29 +8,32 @@ import (
 
 // TaskRepository はタスク永続化のためのインターフェース
 type TaskRepository interface {
-	// タスクの保存 (作成または更新)
-	Save(ctx context.Context, task *domain.Task) error
+	// タスクの作成
+	CreateTask(ctx context.Context, task *domain.Task) error
 
-	// IDによるタスクの取得
-	GetByID(ctx context.Context, id string) (*domain.Task, error)
+	// タスクの取得
+	GetTaskByID(ctx context.Context, id string) (*domain.Task, error)
 
 	// タスク一覧の取得 (フィルタリング、ソート、ページネーション対応)
-	List(
+	ListTasks(
 		ctx context.Context,
 		filter domain.ListFilter,
 		pagination domain.Pagination,
 		sortOptions domain.SortOptions,
 	) ([]*domain.Task, int, error)
 
-	// IDによるタスクの削除
-	Delete(ctx context.Context, id string) error
+	// タスクの更新
+	UpdateTask(ctx context.Context, task *domain.Task) error
 
-	// 複数の条件によるタスクの検索
-	Search(ctx context.Context, query string, limit int) ([]*domain.Task, error)
+	// タスクの削除
+	DeleteTask(ctx context.Context, id string) error
+
+	// 期限切れのタスクを取得
+	GetOverdueTasks(ctx context.Context) ([]*domain.Task, error)
 
 	// 特定のユーザーに割り当てられたタスクの取得
 	GetTasksByAssignee(ctx context.Context, userID string) ([]*domain.Task, error)
 
-	// 期限切れのタスクの取得
-	GetOverdueTasks(ctx context.Context) ([]*domain.Task, error)
+	// タスクの検索
+	SearchTasks(ctx context.Context, query string, limit int) ([]*domain.Task, error)
 }

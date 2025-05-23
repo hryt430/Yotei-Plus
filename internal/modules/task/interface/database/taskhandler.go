@@ -3,39 +3,45 @@ package database
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/hryt430/Yotei+/internal/modules/task/domain"
 	"github.com/hryt430/Yotei+/internal/modules/task/interface/dto"
+	"github.com/hryt430/Yotei+/internal/modules/task/usecase"
 )
 
-var (
-	// ErrTaskNotFound はタスクが見つからない場合のエラー
-	ErrTaskNotFound = errors.New("task not found")
-)
-
-type UserServiceRepository struct {
+// TaskRepository はタスクのデータベースリポジトリ実装
+type TaskRepository struct {
 	SqlHandler
 }
 
-// Save はタスクを保存する（作成または更新）
-func (r *UserServiceRepository) Save(ctx context.Context, task *domain.Task) error {
+// NewTaskRepository は新しいTaskRepositoryを作成する
+func NewTaskRepository(sqlHandler SqlHandler) usecase.TaskRepository {
+	return &TaskRepository{
+		SqlHandler: sqlHandler,
+	}
+}
+
+// 許可されたソートフィールド（SQLインジェクション対策）
+var allowedSortFields = map[string]string{
+	"created_at": "created_at",
+	"updated_at": "updated_at",
+	"title":      "title",
+	"priority":   "priority",
+	"status":     "status",
+	"due_date":   "due_date",
+}
+
+// CreateTask はタスクを作成する
+func (r *TaskRepository) CreateTask(ctx context.Context, task *domain.Task) error {
 	query := `
 		INSERT INTO tasks (
 			id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at
 		) VALUES (
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-		) ON DUPLICATE KEY UPDATE
-			title = VALUES(title),
-			description = VALUES(description),
-			status = VALUES(status),
-			priority = VALUES(priority),
-			assignee_id = VALUES(assignee_id),
-			due_date = VALUES(due_date),
-			updated_at = VALUES(updated_at)
+		)
 	`
 
 	model := dto.FromDomain(task)
@@ -51,57 +57,102 @@ func (r *UserServiceRepository) Save(ctx context.Context, task *domain.Task) err
 		model.CreatedAt,
 		model.UpdatedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to create task: %w", err)
+	}
+	return nil
 }
 
-// GetByID は ID によりタスクを取得する
-func (r *UserServiceRepository) GetByID(ctx context.Context, id string) (*domain.Task, error) {
-	query := `SELECT id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at FROM tasks WHERE id = ?`
+// UpdateTask はタスクを更新する
+func (r *TaskRepository) UpdateTask(ctx context.Context, task *domain.Task) error {
+	query := `
+		UPDATE tasks SET
+			title = ?,
+			description = ?,
+			status = ?,
+			priority = ?,
+			assignee_id = ?,
+			due_date = ?,
+			updated_at = ?
+		WHERE id = ?
+	`
+
+	model := dto.FromDomain(task)
+	result, err := r.Execute(query,
+		model.Title,
+		model.Description,
+		model.Status,
+		model.Priority,
+		model.AssigneeID,
+		model.DueDate,
+		model.UpdatedAt,
+		model.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update task: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if affected == 0 {
+		return usecase.ErrTaskNotFound
+	}
+
+	return nil
+}
+
+// GetTaskByID はIDによりタスクを取得する
+func (r *TaskRepository) GetTaskByID(ctx context.Context, id string) (*domain.Task, error) {
+	query := `
+		SELECT id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at 
+		FROM tasks 
+		WHERE id = ?
+	`
 
 	row, err := r.Query(query, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query task: %w", err)
 	}
 	defer row.Close()
 
 	if !row.Next() {
-		return nil, ErrTaskNotFound
+		return nil, usecase.ErrTaskNotFound
 	}
 
-	var m dto.TaskModel
-	var assigneeID sql.NullString
-	var dueDate sql.NullTime
-
-	err = row.Scan(
-		&m.ID,
-		&m.Title,
-		&m.Description,
-		&m.Status,
-		&m.Priority,
-		&assigneeID,
-		&m.CreatedBy,
-		&dueDate,
-		&m.CreatedAt,
-		&m.UpdatedAt,
-	)
+	task, err := r.scanTaskFromRow(row)
 	if err != nil {
-		return nil, fmt.Errorf("Scan失敗: %w", err)
+		return nil, fmt.Errorf("failed to scan task: %w", err)
 	}
 
-	if assigneeID.Valid {
-		id := assigneeID.String
-		m.AssigneeID = &id
-	}
-	if dueDate.Valid {
-		d := dueDate.Time
-		m.DueDate = &d
-	}
-
-	return m.ToDomain(), nil
+	return task, nil
 }
 
-// List はタスク一覧を取得する（フィルタ・ソート・ページネーション対応）
-func (r *UserServiceRepository) List(
+// DeleteTask はタスクを削除する
+func (r *TaskRepository) DeleteTask(ctx context.Context, id string) error {
+	query := `DELETE FROM tasks WHERE id = ?`
+
+	result, err := r.Execute(query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete task: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if affected == 0 {
+		return usecase.ErrTaskNotFound
+	}
+
+	return nil
+}
+
+// ListTasks はタスク一覧を取得する（フィルタ・ソート・ページネーション対応）
+func (r *TaskRepository) ListTasks(
 	ctx context.Context,
 	filter domain.ListFilter,
 	pagination domain.Pagination,
@@ -110,6 +161,7 @@ func (r *UserServiceRepository) List(
 	var conds []string
 	var args []interface{}
 
+	// フィルタ条件の構築
 	if filter.Status != nil {
 		conds = append(conds, "status = ?")
 		args = append(args, string(*filter.Status))
@@ -135,183 +187,196 @@ func (r *UserServiceRepository) List(
 		args = append(args, *filter.DueDateTo)
 	}
 
-	where := ""
+	whereClause := ""
 	if len(conds) > 0 {
-		where = "WHERE " + strings.Join(conds, " AND ")
+		whereClause = "WHERE " + strings.Join(conds, " AND ")
 	}
 
-	// カウント
-	countQ := fmt.Sprintf("SELECT COUNT(*) FROM tasks %s", where)
-	cr, err := r.Query(countQ, args...)
+	// カウント取得
+	total, err := r.getTaskCount(whereClause, args)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer cr.Close()
 
-	var total int
-	if cr.Next() {
-		if err := cr.Scan(&total); err != nil {
-			return nil, 0, err
-		}
+	// ソートフィールドのバリデーション
+	sortField, ok := allowedSortFields[sort.Field]
+	if !ok {
+		sortField = "created_at"
 	}
 
-	order := fmt.Sprintf("ORDER BY %s %s", sort.Field, sort.Direction)
-	limit := fmt.Sprintf("LIMIT %d OFFSET %d", pagination.PageSize, (pagination.Page-1)*pagination.PageSize)
+	// ソート方向のバリデーション
+	sortDirection := "DESC"
+	if sort.Direction == "ASC" || sort.Direction == "DESC" {
+		sortDirection = sort.Direction
+	}
 
-	q := fmt.Sprintf(
-		"SELECT id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at FROM tasks %s %s %s",
-		where, order, limit,
-	)
-	rows, err := r.Query(q, args...)
+	// メインクエリ
+	query := fmt.Sprintf(`
+		SELECT id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at
+		FROM tasks
+		%s
+		ORDER BY %s %s
+		LIMIT ? OFFSET ?
+	`, whereClause, sortField, sortDirection)
+
+	// ページネーション用のパラメータを追加
+	args = append(args, pagination.PageSize, (pagination.Page-1)*pagination.PageSize)
+
+	rows, err := r.Query(query, args...)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("failed to list tasks: %w", err)
 	}
 	defer rows.Close()
 
-	var list []*domain.Task
+	var tasks []*domain.Task
 	for rows.Next() {
-		var m dto.TaskModel
-		var asn sql.NullString
-		var due sql.NullTime
-
-		err = rows.Scan(
-			&m.ID, &m.Title, &m.Description, &m.Status,
-			&m.Priority, &asn, &m.CreatedBy, &due,
-			&m.CreatedAt, &m.UpdatedAt,
-		)
+		task, err := r.scanTaskFromRow(rows)
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, fmt.Errorf("failed to scan task: %w", err)
 		}
-		if asn.Valid {
-			s := asn.String
-			m.AssigneeID = &s
-		}
-		if due.Valid {
-			dt := due.Time
-			m.DueDate = &dt
-		}
-		list = append(list, m.ToDomain())
+		tasks = append(tasks, task)
 	}
-	return list, total, nil
+
+	return tasks, total, nil
 }
 
-// Delete はタスクを削除する
-func (r *UserServiceRepository) Delete(ctx context.Context, id string) error {
-	_, err := r.Execute("DELETE FROM tasks WHERE id = ?", id)
-	return err
-}
-
-// Search はタイトル or 説明に対する全文検索
-func (r *UserServiceRepository) Search(ctx context.Context, q string, limit int) ([]*domain.Task, error) {
-	sqlQ := `
+// SearchTasks はタイトルまたは説明に対する検索
+func (r *TaskRepository) SearchTasks(ctx context.Context, query string, limit int) ([]*domain.Task, error) {
+	sqlQuery := `
 		SELECT id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at
 		FROM tasks
 		WHERE title LIKE ? OR description LIKE ?
 		ORDER BY created_at DESC
 		LIMIT ?
 	`
-	pattern := "%" + q + "%"
-	rows, err := r.Query(sqlQ, pattern, pattern, limit)
+
+	pattern := "%" + query + "%"
+	rows, err := r.Query(sqlQuery, pattern, pattern, limit)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to search tasks: %w", err)
 	}
 	defer rows.Close()
 
-	var res []*domain.Task
+	var tasks []*domain.Task
 	for rows.Next() {
-		var m dto.TaskModel
-		var asn sql.NullString
-		var due sql.NullTime
-
-		err = rows.Scan(
-			&m.ID, &m.Title, &m.Description, &m.Status,
-			&m.Priority, &asn, &m.CreatedBy, &due,
-			&m.CreatedAt, &m.UpdatedAt,
-		)
+		task, err := r.scanTaskFromRow(rows)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan task: %w", err)
 		}
-		if asn.Valid {
-			s := asn.String
-			m.AssigneeID = &s
-		}
-		if due.Valid {
-			dt := due.Time
-			m.DueDate = &dt
-		}
-		res = append(res, m.ToDomain())
+		tasks = append(tasks, task)
 	}
-	return res, nil
+
+	return tasks, nil
 }
 
-// GetTasksByAssignee はユーザー単位の一覧取得
-func (r *UserServiceRepository) GetTasksByAssignee(ctx context.Context, userID string) ([]*domain.Task, error) {
-	rows, err := r.Query(`SELECT id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at FROM tasks WHERE assignee_id = ? ORDER BY created_at DESC`, userID)
+// GetTasksByAssignee は特定のユーザーに割り当てられたタスクを取得
+func (r *TaskRepository) GetTasksByAssignee(ctx context.Context, userID string) ([]*domain.Task, error) {
+	query := `
+		SELECT id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at
+		FROM tasks
+		WHERE assignee_id = ?
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.Query(query, userID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get tasks by assignee: %w", err)
 	}
 	defer rows.Close()
 
-	var res []*domain.Task
+	var tasks []*domain.Task
 	for rows.Next() {
-		var m dto.TaskModel
-		var asn sql.NullString
-		var due sql.NullTime
-
-		err = rows.Scan(
-			&m.ID, &m.Title, &m.Description, &m.Status,
-			&m.Priority, &asn, &m.CreatedBy, &due,
-			&m.CreatedAt, &m.UpdatedAt,
-		)
+		task, err := r.scanTaskFromRow(rows)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan task: %w", err)
 		}
-		if asn.Valid {
-			s := asn.String
-			m.AssigneeID = &s
-		}
-		if due.Valid {
-			dt := due.Time
-			m.DueDate = &dt
-		}
-		res = append(res, m.ToDomain())
+		tasks = append(tasks, task)
 	}
-	return res, nil
+
+	return tasks, nil
 }
 
-// GetOverdueTasks は期限切れタスクを取得
-func (r *UserServiceRepository) GetOverdueTasks(ctx context.Context) ([]*domain.Task, error) {
+// GetOverdueTasks は期限切れのタスクを取得
+func (r *TaskRepository) GetOverdueTasks(ctx context.Context) ([]*domain.Task, error) {
+	query := `
+		SELECT id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at
+		FROM tasks
+		WHERE due_date < ? AND status != ?
+		ORDER BY due_date ASC
+	`
+
 	now := time.Now()
-	done := string(domain.TaskStatusDone)
-	rows, err := r.Query(`SELECT id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at FROM tasks WHERE due_date < ? AND status != ? ORDER BY due_date ASC`, now, done)
+	doneStatus := string(domain.TaskStatusDone)
+
+	rows, err := r.Query(query, now, doneStatus)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get overdue tasks: %w", err)
 	}
 	defer rows.Close()
 
-	var res []*domain.Task
+	var tasks []*domain.Task
 	for rows.Next() {
-		var m dto.TaskModel
-		var asn sql.NullString
-		var due sql.NullTime
-
-		err = rows.Scan(
-			&m.ID, &m.Title, &m.Description, &m.Status,
-			&m.Priority, &asn, &m.CreatedBy, &due,
-			&m.CreatedAt, &m.UpdatedAt,
-		)
+		task, err := r.scanTaskFromRow(rows)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan task: %w", err)
 		}
-		if asn.Valid {
-			s := asn.String
-			m.AssigneeID = &s
-		}
-		if due.Valid {
-			dt := due.Time
-			m.DueDate = &dt
-		}
-		res = append(res, m.ToDomain())
+		tasks = append(tasks, task)
 	}
-	return res, nil
+
+	return tasks, nil
+}
+
+// scanTaskFromRow はRowからTaskをスキャンする共通処理
+func (r *TaskRepository) scanTaskFromRow(row Row) (*domain.Task, error) {
+	var m dto.TaskModel
+	var assigneeID sql.NullString
+	var dueDate sql.NullTime
+
+	err := row.Scan(
+		&m.ID,
+		&m.Title,
+		&m.Description,
+		&m.Status,
+		&m.Priority,
+		&assigneeID,
+		&m.CreatedBy,
+		&dueDate,
+		&m.CreatedAt,
+		&m.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// NULL値の処理
+	if assigneeID.Valid {
+		id := assigneeID.String
+		m.AssigneeID = &id
+	}
+	if dueDate.Valid {
+		d := dueDate.Time
+		m.DueDate = &d
+	}
+
+	return m.ToDomain(), nil
+}
+
+// getTaskCount はタスクの総数を取得する
+func (r *TaskRepository) getTaskCount(whereClause string, args []interface{}) (int, error) {
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM tasks %s", whereClause)
+
+	row, err := r.Query(countQuery, args...)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count tasks: %w", err)
+	}
+	defer row.Close()
+
+	var count int
+	if row.Next() {
+		if err := row.Scan(&count); err != nil {
+			return 0, fmt.Errorf("failed to scan count: %w", err)
+		}
+	}
+
+	return count, nil
 }

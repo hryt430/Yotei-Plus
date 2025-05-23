@@ -1,4 +1,4 @@
-package management
+package usecase
 
 import (
 	"context"
@@ -6,10 +6,18 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	"github.com/hryt430/Yotei+/internal/modules/task/domain"
-	"github.com/hryt430/Yotei+/internal/modules/task/usecase/persistence"
 )
+
+type TaskService struct {
+	TaskRepository TaskRepository
+}
+
+func NewTaskService(taskRepo TaskRepository) *TaskService {
+	return &TaskService{
+		TaskRepository: taskRepo,
+	}
+}
 
 // エラー定義
 var (
@@ -17,20 +25,8 @@ var (
 	ErrInvalidParameter = errors.New("invalid parameter")
 )
 
-// taskService はタスク管理のビジネスロジックを実装
-type taskService struct {
-	taskRepo TaskRepository
-}
-
-// NewTaskService は新しいTaskServiceのインスタンスを作成
-func NewTaskService(taskRepo TaskRepository) persistence.TaskService {
-	return &taskService{
-		taskRepo: taskRepo,
-	}
-}
-
 // CreateTask はタスクを作成する
-func (s *taskService) CreateTask(
+func (s *TaskService) CreateTask(
 	ctx context.Context,
 	title,
 	description string,
@@ -44,7 +40,7 @@ func (s *taskService) CreateTask(
 	task := domain.NewTask(title, description, priority, createdBy)
 	task.ID = uuid.New().String()
 
-	err := s.taskRepo.Save(ctx, task)
+	err := s.TaskRepository.CreateTask(ctx, task)
 	if err != nil {
 		return nil, err
 	}
@@ -53,25 +49,16 @@ func (s *taskService) CreateTask(
 }
 
 // GetTask はIDに基づいてタスクを取得する
-func (s *taskService) GetTask(ctx context.Context, id string) (*domain.Task, error) {
+func (s *TaskService) GetTask(ctx context.Context, id string) (*domain.Task, error) {
 	if id == "" {
 		return nil, ErrInvalidParameter
 	}
 
-	task, err := s.taskRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if task == nil {
-		return nil, ErrTaskNotFound
-	}
-
-	return task, nil
+	return s.TaskRepository.GetTaskByID(ctx, id)
 }
 
 // ListTasks はタスク一覧を取得する
-func (s *taskService) ListTasks(
+func (s *TaskService) ListTasks(
 	ctx context.Context,
 	filter domain.ListFilter,
 	pagination domain.Pagination,
@@ -93,11 +80,11 @@ func (s *taskService) ListTasks(
 		sortOptions.Direction = "DESC"
 	}
 
-	return s.taskRepo.List(ctx, filter, pagination, sortOptions)
+	return s.TaskRepository.ListTasks(ctx, filter, pagination, sortOptions)
 }
 
 // UpdateTask はタスクを更新する
-func (s *taskService) UpdateTask(
+func (s *TaskService) UpdateTask(
 	ctx context.Context,
 	id string,
 	title, description *string,
@@ -109,13 +96,9 @@ func (s *taskService) UpdateTask(
 		return nil, ErrInvalidParameter
 	}
 
-	task, err := s.taskRepo.GetByID(ctx, id)
+	task, err := s.TaskRepository.GetTaskByID(ctx, id)
 	if err != nil {
 		return nil, err
-	}
-
-	if task == nil {
-		return nil, ErrTaskNotFound
 	}
 
 	// 各フィールドの更新（指定されている場合のみ）
@@ -137,7 +120,7 @@ func (s *taskService) UpdateTask(
 
 	task.UpdatedAt = time.Now()
 
-	err = s.taskRepo.Save(ctx, task)
+	err = s.TaskRepository.UpdateTask(ctx, task)
 	if err != nil {
 		return nil, err
 	}
@@ -146,41 +129,34 @@ func (s *taskService) UpdateTask(
 }
 
 // DeleteTask はタスクを削除する
-func (s *taskService) DeleteTask(ctx context.Context, id string) error {
+func (s *TaskService) DeleteTask(ctx context.Context, id string) error {
 	if id == "" {
 		return ErrInvalidParameter
 	}
 
-	task, err := s.taskRepo.GetByID(ctx, id)
+	// 存在確認のために取得を試行
+	_, err := s.TaskRepository.GetTaskByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	if task == nil {
-		return ErrTaskNotFound
-	}
-
-	return s.taskRepo.Delete(ctx, id)
+	return s.TaskRepository.DeleteTask(ctx, id)
 }
 
 // AssignTask はタスクを指定されたユーザーに割り当てる
-func (s *taskService) AssignTask(ctx context.Context, taskID string, assigneeID string) (*domain.Task, error) {
+func (s *TaskService) AssignTask(ctx context.Context, taskID string, assigneeID string) (*domain.Task, error) {
 	if taskID == "" || assigneeID == "" {
 		return nil, ErrInvalidParameter
 	}
 
-	task, err := s.taskRepo.GetByID(ctx, taskID)
+	task, err := s.TaskRepository.GetTaskByID(ctx, taskID)
 	if err != nil {
 		return nil, err
 	}
 
-	if task == nil {
-		return nil, ErrTaskNotFound
-	}
-
 	task.AssignTo(assigneeID)
 
-	err = s.taskRepo.Save(ctx, task)
+	err = s.TaskRepository.UpdateTask(ctx, task)
 	if err != nil {
 		return nil, err
 	}
@@ -189,23 +165,19 @@ func (s *taskService) AssignTask(ctx context.Context, taskID string, assigneeID 
 }
 
 // ChangeTaskStatus はタスクのステータスを変更する
-func (s *taskService) ChangeTaskStatus(ctx context.Context, taskID string, status domain.TaskStatus) (*domain.Task, error) {
+func (s *TaskService) ChangeTaskStatus(ctx context.Context, taskID string, status domain.TaskStatus) (*domain.Task, error) {
 	if taskID == "" {
 		return nil, ErrInvalidParameter
 	}
 
-	task, err := s.taskRepo.GetByID(ctx, taskID)
+	task, err := s.TaskRepository.GetTaskByID(ctx, taskID)
 	if err != nil {
 		return nil, err
 	}
 
-	if task == nil {
-		return nil, ErrTaskNotFound
-	}
-
 	task.SetStatus(status)
 
-	err = s.taskRepo.Save(ctx, task)
+	err = s.TaskRepository.UpdateTask(ctx, task)
 	if err != nil {
 		return nil, err
 	}
@@ -214,15 +186,28 @@ func (s *taskService) ChangeTaskStatus(ctx context.Context, taskID string, statu
 }
 
 // GetOverdueTasks は期限切れのタスクを取得する
-func (s *taskService) GetOverdueTasks(ctx context.Context) ([]*domain.Task, error) {
-	return s.taskRepo.GetOverdueTasks(ctx)
+func (s *TaskService) GetOverdueTasks(ctx context.Context) ([]*domain.Task, error) {
+	return s.TaskRepository.GetOverdueTasks(ctx)
 }
 
 // GetTasksByAssignee は特定のユーザーに割り当てられたタスクを取得する
-func (s *taskService) GetTasksByAssignee(ctx context.Context, userID string) ([]*domain.Task, error) {
+func (s *TaskService) GetTasksByAssignee(ctx context.Context, userID string) ([]*domain.Task, error) {
 	if userID == "" {
 		return nil, ErrInvalidParameter
 	}
 
-	return s.taskRepo.GetTasksByAssignee(ctx, userID)
+	return s.TaskRepository.GetTasksByAssignee(ctx, userID)
+}
+
+// SearchTasks はタスクを検索する
+func (s *TaskService) SearchTasks(ctx context.Context, query string, limit int) ([]*domain.Task, error) {
+	if query == "" {
+		return nil, ErrInvalidParameter
+	}
+
+	if limit <= 0 {
+		limit = 20
+	}
+
+	return s.TaskRepository.SearchTasks(ctx, query, limit)
 }

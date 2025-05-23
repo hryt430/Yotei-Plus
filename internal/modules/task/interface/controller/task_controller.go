@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -9,18 +8,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/hryt430/Yotei+/internal/modules/task/domain"
-	"github.com/hryt430/Yotei+/internal/modules/task/usecase/management"
-	"github.com/hryt430/Yotei+/internal/modules/task/usecase/persistence"
+	"github.com/hryt430/Yotei+/internal/modules/task/usecase"
 	"github.com/hryt430/Yotei+/pkg/utils"
 )
 
 // TaskController はタスク関連のHTTPリクエストを処理するコントローラー
 type TaskController struct {
-	taskService persistence.TaskService
+	taskService usecase.TaskService
 }
 
 // NewTaskController は新しいTaskControllerを作成する
-func NewTaskController(taskService persistence.TaskService) *TaskController {
+func NewTaskController(taskService usecase.TaskService) *TaskController {
 	return &TaskController{
 		taskService: taskService,
 	}
@@ -51,12 +49,14 @@ type TaskResponse struct {
 	IsOverdue   bool       `json:"is_overdue"`
 }
 
-// ListResponse はタスク一覧レスポンス
-type ListResponse struct {
-	Tasks      []TaskResponse `json:"tasks"`
-	TotalCount int            `json:"total_count"`
-	Page       int            `json:"page"`
-	PageSize   int            `json:"page_size"`
+// AssignTaskRequest はタスク割り当てリクエスト
+type AssignTaskRequest struct {
+	AssigneeID string `json:"assignee_id" binding:"required"`
+}
+
+// ChangeStatusRequest はステータス変更リクエスト
+type ChangeStatusRequest struct {
+	Status string `json:"status" binding:"required,oneof=TODO IN_PROGRESS DONE"`
 }
 
 // taskToResponse はドメインモデルからレスポンスモデルに変換する
@@ -76,6 +76,24 @@ func taskToResponse(task *domain.Task) TaskResponse {
 	}
 }
 
+// tasksToResponse はタスクリストをレスポンス形式に変換する
+func tasksToResponse(tasks []*domain.Task) []TaskResponse {
+	var taskResponses []TaskResponse
+	for _, task := range tasks {
+		taskResponses = append(taskResponses, taskToResponse(task))
+	}
+	return taskResponses
+}
+
+// getUserIDFromContext は認証済みユーザーIDをコンテキストから取得する
+func getUserIDFromContext(ctx *gin.Context) (string, error) {
+	userID, exists := ctx.Get("user_id")
+	if !exists {
+		return "", errors.New("authentication required")
+	}
+	return userID.(string), nil
+}
+
 // CreateTask はタスクを作成するハンドラー
 func (c *TaskController) CreateTask(ctx *gin.Context) {
 	var req TaskRequest
@@ -90,10 +108,10 @@ func (c *TaskController) CreateTask(ctx *gin.Context) {
 		return
 	}
 
-	// ユーザーID取得（認証済みユーザーのIDをコンテキストから取得）
-	userID, exists := ctx.Get("user_id")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse("Authentication required"))
+	// ユーザーID取得
+	userID, err := getUserIDFromContext(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse(err.Error()))
 		return
 	}
 
@@ -108,7 +126,7 @@ func (c *TaskController) CreateTask(ctx *gin.Context) {
 		req.Title,
 		req.Description,
 		priority,
-		userID.(string),
+		userID,
 	)
 	if err != nil {
 		handleServiceError(ctx, err)
@@ -211,65 +229,14 @@ func (c *TaskController) DeleteTask(ctx *gin.Context) {
 
 // ListTasks はタスク一覧を取得するハンドラー
 func (c *TaskController) ListTasks(ctx *gin.Context) {
-	// クエリパラメータの解析
 	// フィルタリング条件の設定
-	var filter domain.ListFilter
-
-	if status := ctx.Query("status"); status != "" {
-		s := domain.TaskStatus(status)
-		filter.Status = &s
-	}
-
-	if priority := ctx.Query("priority"); priority != "" {
-		p := domain.Priority(priority)
-		filter.Priority = &p
-	}
-
-	if assigneeID := ctx.Query("assignee_id"); assigneeID != "" {
-		filter.AssigneeID = &assigneeID
-	}
-
-	if createdBy := ctx.Query("created_by"); createdBy != "" {
-		filter.CreatedBy = &createdBy
-	}
+	filter := parseListFilter(ctx)
 
 	// ページネーション設定
-	page := 1
-	pageSize := 10
-
-	if p := ctx.Query("page"); p != "" {
-		if pageNum, err := strconv.Atoi(p); err == nil && pageNum > 0 {
-			page = pageNum
-		}
-	}
-
-	if ps := ctx.Query("page_size"); ps != "" {
-		if pageSizeNum, err := strconv.Atoi(ps); err == nil && pageSizeNum > 0 && pageSizeNum <= 100 {
-			pageSize = pageSizeNum
-		}
-	}
-
-	pagination := domain.Pagination{
-		Page:     page,
-		PageSize: pageSize,
-	}
+	pagination := parsePagination(ctx)
 
 	// ソート設定
-	sortField := "created_at"
-	sortDirection := "DESC"
-
-	if sf := ctx.Query("sort_field"); sf != "" {
-		sortField = sf
-	}
-
-	if sd := ctx.Query("sort_direction"); sd == "ASC" || sd == "DESC" {
-		sortDirection = sd
-	}
-
-	sortOptions := domain.SortOptions{
-		Field:     sortField,
-		Direction: sortDirection,
-	}
+	sortOptions := parseSortOptions(ctx)
 
 	// タスク一覧取得
 	tasks, total, err := c.taskService.ListTasks(ctx, filter, pagination, sortOptions)
@@ -279,18 +246,15 @@ func (c *TaskController) ListTasks(ctx *gin.Context) {
 	}
 
 	// レスポンス作成
-	var taskResponses []TaskResponse
-	for _, task := range tasks {
-		taskResponses = append(taskResponses, taskToResponse(task))
-	}
+	taskResponses := tasksToResponse(tasks)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
 			"tasks":       taskResponses,
 			"total_count": total,
-			"page":        page,
-			"page_size":   pageSize,
+			"page":        pagination.Page,
+			"page_size":   pagination.PageSize,
 		},
 	})
 }
@@ -299,10 +263,7 @@ func (c *TaskController) ListTasks(ctx *gin.Context) {
 func (c *TaskController) AssignTask(ctx *gin.Context) {
 	taskID := ctx.Param("id")
 
-	var req struct {
-		AssigneeID string `json:"assignee_id" binding:"required"`
-	}
-
+	var req AssignTaskRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
@@ -325,10 +286,7 @@ func (c *TaskController) AssignTask(ctx *gin.Context) {
 func (c *TaskController) ChangeTaskStatus(ctx *gin.Context) {
 	taskID := ctx.Param("id")
 
-	var req struct {
-		Status string `json:"status" binding:"required,oneof=TODO IN_PROGRESS DONE"`
-	}
-
+	var req ChangeStatusRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
@@ -356,10 +314,7 @@ func (c *TaskController) GetOverdueTasks(ctx *gin.Context) {
 		return
 	}
 
-	var taskResponses []TaskResponse
-	for _, task := range tasks {
-		taskResponses = append(taskResponses, taskToResponse(task))
-	}
+	taskResponses := tasksToResponse(tasks)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -372,22 +327,19 @@ func (c *TaskController) GetOverdueTasks(ctx *gin.Context) {
 
 // GetMyTasks は現在のユーザーのタスクを取得するハンドラー
 func (c *TaskController) GetMyTasks(ctx *gin.Context) {
-	userID, exists := ctx.Get("user_id")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse("Authentication required"))
+	userID, err := getUserIDFromContext(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse(err.Error()))
 		return
 	}
 
-	tasks, err := c.taskService.GetTasksByAssignee(ctx, userID.(string))
+	tasks, err := c.taskService.GetTasksByAssignee(ctx, userID)
 	if err != nil {
 		handleServiceError(ctx, err)
 		return
 	}
 
-	var taskResponses []TaskResponse
-	for _, task := range tasks {
-		taskResponses = append(taskResponses, taskToResponse(task))
-	}
+	taskResponses := tasksToResponse(tasks)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -408,10 +360,7 @@ func (c *TaskController) GetUserTasks(ctx *gin.Context) {
 		return
 	}
 
-	var taskResponses []TaskResponse
-	for _, task := range tasks {
-		taskResponses = append(taskResponses, taskToResponse(task))
-	}
+	taskResponses := tasksToResponse(tasks)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -432,35 +381,19 @@ func (c *TaskController) SearchTasks(ctx *gin.Context) {
 
 	limit := 20
 	if limitStr := ctx.Query("limit"); limitStr != "" {
-		if limitNum, err := strconv.Atoi(limitStr); err == nil && limitNum > 0 {
+		if limitNum, err := strconv.Atoi(limitStr); err == nil && limitNum > 0 && limitNum <= 100 {
 			limit = limitNum
 		}
 	}
 
-	// リポジトリから直接検索を呼び出す
-	// インターフェースチェックのために型アサーション
-	taskRepo, ok := c.taskService.(interface {
-		Search(ctx context.Context, query string, limit int) ([]*domain.Task, error)
-	})
-
-	if !ok {
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Search functionality not available"))
-		return
-	}
-
-	tasks, err := taskRepo.(interface {
-		Search(ctx context.Context, query string, limit int) ([]*domain.Task, error)
-	}).Search(ctx, query, limit)
-
+	// サービス層の SearchTasks メソッドを呼び出し
+	tasks, err := c.taskService.SearchTasks(ctx, query, limit)
 	if err != nil {
 		handleServiceError(ctx, err)
 		return
 	}
 
-	var taskResponses []TaskResponse
-	for _, task := range tasks {
-		taskResponses = append(taskResponses, taskToResponse(task))
-	}
+	taskResponses := tasksToResponse(tasks)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -471,13 +404,103 @@ func (c *TaskController) SearchTasks(ctx *gin.Context) {
 	})
 }
 
-// ユーティリティ関数
+// parseListFilter はクエリパラメータからフィルタを解析する
+func parseListFilter(ctx *gin.Context) domain.ListFilter {
+	var filter domain.ListFilter
+
+	if status := ctx.Query("status"); status != "" {
+		s := domain.TaskStatus(status)
+		filter.Status = &s
+	}
+
+	if priority := ctx.Query("priority"); priority != "" {
+		p := domain.Priority(priority)
+		filter.Priority = &p
+	}
+
+	if assigneeID := ctx.Query("assignee_id"); assigneeID != "" {
+		filter.AssigneeID = &assigneeID
+	}
+
+	if createdBy := ctx.Query("created_by"); createdBy != "" {
+		filter.CreatedBy = &createdBy
+	}
+
+	// 日付フィルタの処理
+	if dueDateFromStr := ctx.Query("due_date_from"); dueDateFromStr != "" {
+		if dueDateFrom, err := time.Parse(time.RFC3339, dueDateFromStr); err == nil {
+			filter.DueDateFrom = &dueDateFrom
+		}
+	}
+
+	if dueDateToStr := ctx.Query("due_date_to"); dueDateToStr != "" {
+		if dueDateTo, err := time.Parse(time.RFC3339, dueDateToStr); err == nil {
+			filter.DueDateTo = &dueDateTo
+		}
+	}
+
+	return filter
+}
+
+// parsePagination はクエリパラメータからページネーション情報を解析する
+func parsePagination(ctx *gin.Context) domain.Pagination {
+	page := 1
+	pageSize := 10
+
+	if p := ctx.Query("page"); p != "" {
+		if pageNum, err := strconv.Atoi(p); err == nil && pageNum > 0 {
+			page = pageNum
+		}
+	}
+
+	if ps := ctx.Query("page_size"); ps != "" {
+		if pageSizeNum, err := strconv.Atoi(ps); err == nil && pageSizeNum > 0 && pageSizeNum <= 100 {
+			pageSize = pageSizeNum
+		}
+	}
+
+	return domain.Pagination{
+		Page:     page,
+		PageSize: pageSize,
+	}
+}
+
+// parseSortOptions はクエリパラメータからソートオプションを解析する
+func parseSortOptions(ctx *gin.Context) domain.SortOptions {
+	sortField := "created_at"
+	sortDirection := "DESC"
+
+	if sf := ctx.Query("sort_field"); sf != "" {
+		// ソートフィールドのバリデーション
+		allowedFields := map[string]bool{
+			"created_at": true,
+			"updated_at": true,
+			"title":      true,
+			"priority":   true,
+			"status":     true,
+			"due_date":   true,
+		}
+		if allowedFields[sf] {
+			sortField = sf
+		}
+	}
+
+	if sd := ctx.Query("sort_direction"); sd == "ASC" || sd == "DESC" {
+		sortDirection = sd
+	}
+
+	return domain.SortOptions{
+		Field:     sortField,
+		Direction: sortDirection,
+	}
+}
+
 // handleServiceError はサービスレイヤーからのエラーを処理する
 func handleServiceError(ctx *gin.Context, err error) {
 	switch {
-	case errors.Is(err, management.ErrTaskNotFound):
+	case errors.Is(err, usecase.ErrTaskNotFound):
 		ctx.JSON(http.StatusNotFound, utils.ErrorResponse("Task not found"))
-	case errors.Is(err, management.ErrInvalidParameter):
+	case errors.Is(err, usecase.ErrInvalidParameter):
 		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid parameters"))
 	default:
 		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Internal server error"))
