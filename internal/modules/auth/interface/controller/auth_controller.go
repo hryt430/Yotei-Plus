@@ -132,7 +132,7 @@ func (c *AuthController) RefreshToken(ctx *gin.Context) {
 		req.RefreshToken = refreshToken
 	}
 
-	newAccessToken, newRefreshToken, err := c.Interactor.TokenService.RefreshToken(req.RefreshToken)
+	newAccessToken, newRefreshToken, err := c.Interactor.RefreshToken(req.RefreshToken)
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse("Invalid or expired refresh token"))
 		return

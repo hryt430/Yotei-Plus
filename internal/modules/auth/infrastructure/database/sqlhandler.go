@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hryt430/Yotei+/config"
+	commonDB "github.com/hryt430/Yotei+/internal/common/infrastructure/database"
 	"github.com/hryt430/Yotei+/internal/modules/auth/interface/database"
 )
 
@@ -12,24 +13,20 @@ type SqlHandler struct {
 	Conn *sql.DB
 }
 
-// インターフェースは既存のまま維持する想定
-
 func NewSqlHandler() SqlHandler {
 	config, err := config.LoadConfig(".")
 	if err != nil {
 		panic(err.Error())
 	}
 
-	// common/databaseのハンドラーを取得
-	commonHandler, err := commonDB.NewMySQLHandler(config)
+	// common/databaseからDBコネクションを取得
+	conn, err := commonDB.NewMySQLConnection(config)
 	if err != nil {
-		panic(err.Error()) // または既存の処理に合わせたエラーハンドリング
+		panic(err.Error())
 	}
 
-	// common/databaseのコネクションを取得して、infrastructure側のSqlHandlerに設定
 	sqlHandler := new(SqlHandler)
-	sqlHandler.Conn = commonHandler.(*commonDB.MySQLHandler).Conn
-
+	sqlHandler.Conn = conn
 	return *sqlHandler
 }
 
