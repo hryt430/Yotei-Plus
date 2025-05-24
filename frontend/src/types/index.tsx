@@ -81,12 +81,7 @@ export interface AuthResponse {
 
 export interface UserResponse {
   success: boolean;
-  data: {
-    user_id: string;
-    email: string;
-    username: string;
-    role: string;
-  };
+  data: User
 }
 
 // タスク関連の型
