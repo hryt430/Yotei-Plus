@@ -12,6 +12,7 @@ import (
 
 func NewMySQLConnection(cfg *config.Config) (*sql.DB, error) {
 	dsn := cfg.GetDSN()
+	fmt.Printf("DSN: %q\n", dsn)
 	conn, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)

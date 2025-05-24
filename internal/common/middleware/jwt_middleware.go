@@ -1,96 +1,81 @@
 package middleware
 
 import (
-	"context"
 	"errors"
 	"log"
 	"net/http"
 	"strings"
 
-	"github.com/hryt430/task-management/internal/modules/auth/domain/entity"
-	authService "github.com/hryt430/task-management/internal/modules/auth/usecase/auth"
+	"github.com/gin-gonic/gin"
+	"github.com/hryt430/Yotei+/internal/modules/auth/domain"
+	authService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/auth"
 )
 
-// JWTAuthMiddleware は認証用のミドルウェアです
-type JWTAuthMiddleware struct {
-	authUsecase authService.AuthUseCase
-}
-
-// NewJWTAuthMiddleware は新しいJWT認証ミドルウェアを作成します
-func NewJWTAuthMiddleware(authUsecase authService.AuthUseCase) *JWTAuthMiddleware {
-	return &JWTAuthMiddleware{
-		authUsecase: authUsecase,
-	}
-}
-
-// Middleware はHTTPハンドラーを認証ミドルウェアでラップします
-func (m *JWTAuthMiddleware) Middleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Authorizationヘッダーからトークンを取得
-		authHeader := r.Header.Get("Authorization")
+// NewJWTAuthMiddleware Gin 用 JWT 認証ミドルウェアを返します
+func NewJWTAuthMiddleware(authUC *authService.AuthService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Authorization ヘッダー取得
+		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			http.Error(w, "認証トークンがありません", http.StatusUnauthorized)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "認証トークンがありません"})
 			return
 		}
 
-		// Bearer tokenの形式を想定
-		tokenParts := strings.Split(authHeader, " ")
-		if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
-			http.Error(w, "認証トークンのフォーマットが不正です", http.StatusUnauthorized)
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "認証トークンのフォーマットが不正です"})
 			return
 		}
+		token := parts[1]
 
-		token := tokenParts[1]
-
-		// トークンの検証
-		user, err := m.authUsecase.ValidateToken(r.Context(), token)
+		// トークン検証
+		user, err := authUC.TokenService.ValidateAccessToken(token)
 		if err != nil {
 			log.Printf("トークン検証エラー: %v", err)
-			http.Error(w, "無効なトークンです", http.StatusUnauthorized)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "無効なトークンです"})
 			return
 		}
 
-		// コンテキストにユーザー情報を追加
-		ctx := context.WithValue(r.Context(), "user", user)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
+		// Gin コンテキストにユーザー情報をセット
+		c.Set("user", user)
 
-// RequireRole は特定のロールを持つユーザーのみアクセスを許可します
-func (m *JWTAuthMiddleware) RequireRole(role string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// コンテキストからユーザー情報を取得
-			user, ok := r.Context().Value("user").(*entity.User)
-			if !ok {
-				http.Error(w, "認証されていません", http.StatusUnauthorized)
-				return
-			}
-
-			// ユーザーが必要なロールを持っているか確認
-			hasRole := false
-			for _, userRole := range user.Roles {
-				if userRole.Name == role {
-					hasRole = true
-					break
-				}
-			}
-
-			if !hasRole {
-				http.Error(w, "アクセス権限がありません", http.StatusForbidden)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
+		c.Next()
 	}
 }
 
-// GetUserFromContext はコンテキストからユーザー情報を取得するヘルパー関数です
-func GetUserFromContext(ctx context.Context) (*entity.User, error) {
-	user, ok := ctx.Value("user").(*entity.User)
+// RequireRole は指定のロールを持つユーザーのみ許可するミドルウェア生成器です
+func RequireRole(role string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		val, exists := c.Get("user")
+		if !exists {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "認証されていません"})
+			return
+		}
+
+		user, ok := val.(*domain.User)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "ユーザー情報の取得に失敗"})
+			return
+		}
+
+		if user.Role == role {
+			c.Next()
+			return
+		}
+
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "アクセス権限がありません"})
+	}
+}
+
+// GetUserFromContext は Gin のコンテキストからドメインユーザーを取得します
+func GetUserFromContext(c *gin.Context) (*domain.User, error) {
+	val, exists := c.Get("user")
+	if !exists {
+		return nil, errors.New("コンテキストにユーザー情報がありません")
+	}
+	user, ok := val.(*domain.User)
 	if !ok {
-		return nil, errors.New("コンテキストからユーザー情報を取得できません")
+		return nil, errors.New("ユーザー情報の型が不正です")
 	}
 	return user, nil
 }
