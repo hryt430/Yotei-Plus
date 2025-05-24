@@ -1,76 +1,106 @@
-// src/app/api/tasks/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]/route';
+// src/api/tasks/route.ts
+// タスク関連のAPI関数
+
+import { 
+  ApiResponse, 
+  Task, 
+  TaskRequest, 
+  TaskListResponse, 
+  TaskResponse,
+  TaskFilter,
+  Pagination,
+  SortOptions
+} from '@/types'
+import { apiClient } from '@/api/client/route'
+
+// タスク一覧取得のパラメータ
+export interface GetTasksParams extends TaskFilter {
+  page?: number
+  page_size?: number
+  sort_field?: string
+  sort_direction?: 'ASC' | 'DESC'
+}
+
+// タスク検索パラメータ
+export interface SearchTasksParams {
+  q: string
+  limit?: number
+}
 
 // タスク一覧を取得
-export async function GET(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || !session.accessToken) {
-      return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-    }
-
-    // URLからクエリパラメータを取得
-    const { searchParams } = new URL(req.url);
-    const page = searchParams.get('page') || '1';
-    const limit = searchParams.get('limit') || '10';
-    const sort = searchParams.get('sort') || 'dueDate';
-    const order = searchParams.get('order') || 'asc';
-    const status = searchParams.get('status');
-    const priority = searchParams.get('priority');
-
-    // バックエンドAPIにリクエスト
-    const response = await fetch(`${process.env.API_URL}/tasks?page=${page}&limit=${limit}&sort=${sort}&order=${order}${status ? `&status=${status}` : ''}${priority ? `&priority=${priority}` : ''}`, {
-      headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      return NextResponse.json({ error: error.message || 'タスクの取得に失敗しました' }, { status: response.status });
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('タスク取得エラー:', error);
-    return NextResponse.json({ error: 'タスクの取得中にエラーが発生しました' }, { status: 500 });
+export async function getTasks(params?: GetTasksParams): Promise<TaskListResponse> {
+  const queryParams: Record<string, string> = {}
+  
+  if (params) {
+    if (params.page) queryParams.page = params.page.toString()
+    if (params.page_size) queryParams.page_size = params.page_size.toString()
+    if (params.sort_field) queryParams.sort_field = params.sort_field
+    if (params.sort_direction) queryParams.sort_direction = params.sort_direction
+    if (params.status) queryParams.status = params.status
+    if (params.priority) queryParams.priority = params.priority
+    if (params.assignee_id) queryParams.assignee_id = params.assignee_id
+    if (params.created_by) queryParams.created_by = params.created_by
+    if (params.due_date_from) queryParams.due_date_from = params.due_date_from
+    if (params.due_date_to) queryParams.due_date_to = params.due_date_to
+    if (params.search) queryParams.search = params.search
   }
+
+  return apiClient.get<TaskListResponse>('/api/tasks', queryParams)
 }
 
 // 新しいタスクを作成
-export async function POST(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || !session.accessToken) {
-      return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-    }
+export async function createTask(data: TaskRequest): Promise<TaskResponse> {
+  return apiClient.post<TaskResponse>('/api/tasks', data)
+}
 
-    const taskData = await req.json();
+// 期限切れのタスクを取得
+export async function getOverdueTasks(): Promise<ApiResponse<{
+  tasks: Task[]
+  count: number
+}>> {
+  return apiClient.get<ApiResponse<{
+    tasks: Task[]
+    count: number
+  }>>('/api/tasks/overdue')
+}
 
-    // バックエンドAPIにリクエスト
-    const response = await fetch(`${process.env.API_URL}/tasks`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(taskData),
-    });
+// 現在のユーザーのタスクを取得
+export async function getMyTasks(): Promise<ApiResponse<{
+  tasks: Task[]
+  count: number
+}>> {
+  return apiClient.get<ApiResponse<{
+    tasks: Task[]
+    count: number
+  }>>('/api/tasks/my')
+}
 
-    if (!response.ok) {
-      const error = await response.json();
-      return NextResponse.json({ error: error.message || 'タスクの作成に失敗しました' }, { status: response.status });
-    }
+// 特定のユーザーのタスクを取得
+export async function getUserTasks(userId: string): Promise<ApiResponse<{
+  tasks: Task[]
+  count: number
+}>> {
+  return apiClient.get<ApiResponse<{
+    tasks: Task[]
+    count: number
+  }>>(`/api/tasks/user/${userId}`)
+}
 
-    const data = await response.json();
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('タスク作成エラー:', error);
-    return NextResponse.json({ error: 'タスクの作成中にエラーが発生しました' }, { status: 500 });
+// タスクを検索
+export async function searchTasks(params: SearchTasksParams): Promise<ApiResponse<{
+  tasks: Task[]
+  count: number
+}>> {
+  const queryParams: Record<string, string> = {
+    q: params.q
   }
+  
+  if (params.limit) {
+    queryParams.limit = params.limit.toString()
+  }
+
+  return apiClient.get<ApiResponse<{
+    tasks: Task[]
+    count: number
+  }>>('/api/tasks/search', queryParams)
 }

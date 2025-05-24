@@ -1,72 +1,66 @@
-// src/app/api/notifications/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]/route';
+// src/api/notifications/route.ts
+// 通知関連のAPI関数
 
-// 通知一覧を取得
-export async function GET(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || !session.accessToken) {
-      return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-    }
+import { ApiResponse, Notification } from '@/types'
+import { apiClient } from '@/api/client/route'
 
-    // URLからクエリパラメータを取得
-    const { searchParams } = new URL(req.url);
-    const page = searchParams.get('page') || '1';
-    const limit = searchParams.get('limit') || '10';
-    const unreadOnly = searchParams.get('unreadOnly') || 'false';
+// 通知作成の入力データ
+export interface CreateNotificationInput {
+  user_id: string
+  type: 'APP_NOTIFICATION' | 'TASK_ASSIGNED' | 'TASK_COMPLETED' | 'TASK_DUE_SOON' | 'SYSTEM_NOTICE'
+  title: string
+  message: string
+  metadata?: Record<string, string>
+  channels: string[] // "app", "line" などのチャネル指定
+}
 
-    // バックエンドAPIにリクエスト
-    const response = await fetch(`${process.env.API_URL}/notifications?page=${page}&limit=${limit}&unreadOnly=${unreadOnly}`, {
-      headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
-      },
-    });
+// 通知一覧取得の入力データ
+export interface GetNotificationsParams {
+  limit?: number
+  offset?: number
+  unreadOnly?: boolean
+}
 
-    if (!response.ok) {
-      const error = await response.json();
-      return NextResponse.json({ error: error.message || '通知の取得に失敗しました' }, { status: response.status });
-    }
+// 新しい通知を作成
+export async function createNotification(data: CreateNotificationInput): Promise<ApiResponse<Notification>> {
+  return apiClient.post<ApiResponse<Notification>>('/api/notifications', data)
+}
 
-    const data = await response.json();
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('通知取得エラー:', error);
-    return NextResponse.json({ error: '通知の取得中にエラーが発生しました' }, { status: 500 });
+// 特定の通知を取得
+export async function getNotification(id: string): Promise<ApiResponse<Notification>> {
+  return apiClient.get<ApiResponse<Notification>>(`/api/notifications/${id}`)
+}
+
+// ユーザーの通知一覧を取得
+export async function getUserNotifications(
+  userId: string, 
+  params?: GetNotificationsParams
+): Promise<ApiResponse<Notification[]>> {
+  const queryParams = {
+    limit: params?.limit?.toString() || '10',
+    offset: params?.offset?.toString() || '0',
+    ...(params?.unreadOnly && { unreadOnly: 'true' })
   }
+  
+  return apiClient.get<ApiResponse<Notification[]>>(`/api/notifications/user/${userId}`, queryParams)
+}
+
+// 通知を送信
+export async function sendNotification(id: string): Promise<ApiResponse<{ message: string }>> {
+  return apiClient.post<ApiResponse<{ message: string }>>(`/api/notifications/${id}/send`)
 }
 
 // 通知を既読にする
-export async function PATCH(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || !session.accessToken) {
-      return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-    }
+export async function markNotificationAsRead(id: string): Promise<ApiResponse<{ message: string }>> {
+  return apiClient.put<ApiResponse<{ message: string }>>(`/api/notifications/${id}/read`)
+}
 
-    const { notificationIds } = await req.json();
+// 複数の通知を既読にする
+export async function markNotificationsAsRead(notificationIds: string[]): Promise<ApiResponse<{ message: string }>> {
+  return apiClient.patch<ApiResponse<{ message: string }>>('/api/notifications/mark-read', { notificationIds })
+}
 
-    // バックエンドAPIにリクエスト
-    const response = await fetch(`${process.env.API_URL}/notifications/mark-read`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ notificationIds }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      return NextResponse.json({ error: error.message || '通知の既読化に失敗しました' }, { status: response.status });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('通知既読化エラー:', error);
-    return NextResponse.json({ error: '通知の既読化中にエラーが発生しました' }, { status: 500 });
-  }
+// ユーザーの未読通知数を取得
+export async function getUnreadNotificationCount(userId: string): Promise<ApiResponse<{ count: number }>> {
+  return apiClient.get<ApiResponse<{ count: number }>>(`/api/notifications/user/${userId}/unread/count`)
 }
