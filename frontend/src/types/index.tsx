@@ -87,7 +87,7 @@ export interface UserResponse {
 // タスク関連の型
 export interface TaskRequest {
   title?: string;
-  description?: string;
+  description?: string | undefined
   status?: 'TODO' | 'IN_PROGRESS' | 'DONE';
   priority?: 'LOW' | 'MEDIUM' | 'HIGH';
   assignee_id?: string;
