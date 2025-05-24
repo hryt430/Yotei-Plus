@@ -1,5 +1,14 @@
+// src/lib/utils/date-utils.ts
+// 日付関連のユーティリティ関数（新しい型定義に対応）
+
+import { Task } from '@/types';
+
 export function formatDate(dateString: string): string {
+  if (!dateString) return '';
+  
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '';
+  
   return new Intl.DateTimeFormat('ja-JP', {
     year: 'numeric',
     month: 'short',
@@ -8,7 +17,11 @@ export function formatDate(dateString: string): string {
 }
 
 export function formatDateTime(dateString: string): string {
+  if (!dateString) return '';
+  
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '';
+  
   return new Intl.DateTimeFormat('ja-JP', {
     year: 'numeric',
     month: 'short',
@@ -18,7 +31,21 @@ export function formatDateTime(dateString: string): string {
   }).format(date);
 }
 
+export function formatTime(dateString: string): string {
+  if (!dateString) return '';
+  
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '';
+  
+  return new Intl.DateTimeFormat('ja-JP', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
 export function isToday(dateString: string): boolean {
+  if (!dateString) return false;
+  
   const date = new Date(dateString);
   const today = new Date();
   
@@ -28,6 +55,8 @@ export function isToday(dateString: string): boolean {
 }
 
 export function isTomorrow(dateString: string): boolean {
+  if (!dateString) return false;
+  
   const date = new Date(dateString);
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -37,7 +66,21 @@ export function isTomorrow(dateString: string): boolean {
     date.getFullYear() === tomorrow.getFullYear();
 }
 
+export function isYesterday(dateString: string): boolean {
+  if (!dateString) return false;
+  
+  const date = new Date(dateString);
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  return date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear();
+}
+
 export function isOverdue(dateString: string): boolean {
+  if (!dateString) return false;
+  
   const date = new Date(dateString);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -46,6 +89,8 @@ export function isOverdue(dateString: string): boolean {
 }
 
 export function getDaysUntil(dateString: string): number {
+  if (!dateString) return 0;
+  
   const date = new Date(dateString);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -63,12 +108,18 @@ export function getRelativeDateLabel(dateString: string): string {
     return '今日';
   } else if (isTomorrow(dateString)) {
     return '明日';
+  } else if (isYesterday(dateString)) {
+    return '昨日';
   } else if (isOverdue(dateString)) {
-    return '期限切れ';
+    const daysOverdue = Math.abs(getDaysUntil(dateString));
+    return `${daysOverdue}日前`;
   } else {
     const days = getDaysUntil(dateString);
     if (days <= 7) {
       return `${days}日後`;
+    } else if (days <= 30) {
+      const weeks = Math.ceil(days / 7);
+      return `${weeks}週間後`;
     } else {
       return formatDate(dateString);
     }
@@ -77,7 +128,7 @@ export function getRelativeDateLabel(dateString: string): string {
 
 export function getStartOfWeek(date: Date): Date {
   const day = date.getDay();
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // 日曜日から月曜日にする調整
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // 月曜日を週の開始とする
   const start = new Date(date);
   start.setDate(diff);
   start.setHours(0, 0, 0, 0);
@@ -90,6 +141,14 @@ export function getEndOfWeek(date: Date): Date {
   end.setDate(start.getDate() + 6);
   end.setHours(23, 59, 59, 999);
   return end;
+}
+
+export function getStartOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+export function getEndOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
 }
 
 export function getMonthWeeks(year: number, month: number): Date[][] {
@@ -132,20 +191,49 @@ export function isSameMonth(date1: Date, date2: Date): boolean {
          date1.getFullYear() === date2.getFullYear();
 }
 
+export function isSameYear(date1: Date, date2: Date): boolean {
+  return date1.getFullYear() === date2.getFullYear();
+}
+
+export function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+export function addWeeks(date: Date, weeks: number): Date {
+  return addDays(date, weeks * 7);
+}
+
 export function addMonths(date: Date, months: number): Date {
   const result = new Date(date);
   result.setMonth(result.getMonth() + months);
   return result;
 }
 
-export function getWeekdayNames(): string[] {
-  return ['月', '火', '水', '木', '金', '土', '日'];
+export function addYears(date: Date, years: number): Date {
+  const result = new Date(date);
+  result.setFullYear(result.getFullYear() + years);
+  return result;
 }
 
-export function getMonthName(month: number): string {
+export function getWeekdayNames(short: boolean = false): string[] {
+  if (short) {
+    return ['月', '火', '水', '木', '金', '土', '日'];
+  }
+  return ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日'];
+}
+
+export function getMonthName(month: number, short: boolean = false): string {
   const date = new Date();
   date.setMonth(month);
-  return new Intl.DateTimeFormat('ja-JP', { month: 'long' }).format(date);
+  return new Intl.DateTimeFormat('ja-JP', { 
+    month: short ? 'short' : 'long' 
+  }).format(date);
+}
+
+export function getMonthNames(short: boolean = false): string[] {
+  return Array.from({ length: 12 }, (_, i) => getMonthName(i, short));
 }
 
 export function getDateTimeForAPI(date: Date): string {
@@ -166,7 +254,7 @@ export function getDaysBetween(startDate: Date, endDate: Date): number {
   end.setHours(0, 0, 0, 0);
   
   // 日数を計算
-  return Math.round(Math.abs((end.getTime() - start.getTime()) / oneDay)) + 1;
+  return Math.round(Math.abs((end.getTime() - start.getTime()) / oneDay));
 }
 
 export function getDateRangeArray(startDate: Date, endDate: Date): Date[] {
@@ -210,4 +298,88 @@ export function getEndOfQuarter(date: Date): Date {
   const endDate = new Date(date.getFullYear(), endMonth + 1, 0);
   endDate.setHours(23, 59, 59, 999);
   return endDate;
+}
+
+// タスク関連の日付ユーティリティ
+export function isTaskOverdue(task: Task): boolean {
+  return task.due_date ? isOverdue(task.due_date) && task.status !== 'DONE' : false;
+}
+
+export function getTaskDueDateLabel(task: Task): string {
+  return task.due_date ? getRelativeDateLabel(task.due_date) : '';
+}
+
+export function sortTasksByDueDate(tasks: Task[], direction: 'asc' | 'desc' = 'asc'): Task[] {
+  return [...tasks].sort((a, b) => {
+    // due_dateがないタスクは最後に配置
+    if (!a.due_date && !b.due_date) return 0;
+    if (!a.due_date) return 1;
+    if (!b.due_date) return -1;
+    
+    const dateA = new Date(a.due_date);
+    const dateB = new Date(b.due_date);
+    
+    return direction === 'asc' 
+      ? dateA.getTime() - dateB.getTime()
+      : dateB.getTime() - dateA.getTime();
+  });
+}
+
+export function filterTasksByDateRange(
+  tasks: Task[], 
+  startDate?: string, 
+  endDate?: string
+): Task[] {
+  return tasks.filter(task => {
+    if (!task.due_date) return false;
+    
+    const taskDate = new Date(task.due_date);
+    
+    if (startDate && taskDate < new Date(startDate)) return false;
+    if (endDate && taskDate > new Date(endDate)) return false;
+    
+    return true;
+  });
+}
+
+export function getTasksForDate(tasks: Task[], date: Date): Task[] {
+  const targetDateStr = date.toISOString().split('T')[0];
+  
+  return tasks.filter(task => {
+    if (!task.due_date) return false;
+    
+    const taskDateStr = new Date(task.due_date).toISOString().split('T')[0];
+    return taskDateStr === targetDateStr;
+  });
+}
+
+// 日付の妥当性チェック
+export function isValidDate(dateString: string): boolean {
+  if (!dateString) return false;
+  
+  const date = new Date(dateString);
+  return !isNaN(date.getTime());
+}
+
+// 日付を YYYY-MM-DD 形式にフォーマット
+export function formatDateForInput(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return '';
+  
+  return d.toISOString().split('T')[0];
+}
+
+// 現在時刻をISO文字列で取得
+export function now(): string {
+  return new Date().toISOString();
+}
+
+// 今日の日付をYYYY-MM-DD形式で取得
+export function today(): string {
+  return formatDateForInput(new Date());
+}
+
+// 明日の日付をYYYY-MM-DD形式で取得
+export function tomorrow(): string {
+  return formatDateForInput(addDays(new Date(), 1));
 }
