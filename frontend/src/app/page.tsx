@@ -1,101 +1,70 @@
-import Image from "next/image";
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Calendar, Clock, CheckSquare, BellRing } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="flex flex-col min-h-screen">
+      {/* ヒーローセクション */}
+      <section className="flex-1 flex flex-col items-center justify-center px-4 py-16 text-center bg-gradient-to-b from-white to-gray-50">
+        <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-gray-900">
+          シンプルで効率的な<br />タスク管理アプリ
+        </h1>
+        <p className="mt-6 text-lg md:text-xl text-gray-600 max-w-2xl">
+          期限管理、タスクの整理、チーム連携をスマートに。
+          Notionのような美しいインターフェースでタスク管理を効率化します。
+        </p>
+        <div className="mt-10 flex flex-col sm:flex-row gap-4">
+          <Button asChild size="lg" className="px-8">
+            <Link href="/login">ログイン</Link>
+          </Button>
+          <Button asChild variant="outline" size="lg" className="px-8">
+            <Link href="/register">新規登録</Link>
+          </Button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      </section>
+
+      {/* 特徴セクション */}
+      <section className="py-16 px-4 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-12">主な機能</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <FeatureCard
+              icon={<CheckSquare className="h-10 w-10 text-blue-500" />}
+              title="タスク管理"
+              description="タスクの作成、編集、削除、フィルタリング、優先順位設定などを簡単に行えます。"
+            />
+            <FeatureCard
+              icon={<Calendar className="h-10 w-10 text-green-500" />}
+              title="カレンダー連携"
+              description="期限を視覚的に管理し、予定の把握が容易になります。"
+            />
+            <FeatureCard
+              icon={<BellRing className="h-10 w-10 text-purple-500" />}
+              title="通知システム"
+              description="重要な期限や更新を見逃さないように通知機能でお知らせします。"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* フッター */}
+      <footer className="py-8 px-4 bg-gray-50 border-t border-gray-200">
+        <div className="max-w-6xl mx-auto text-center text-gray-600">
+          <p>© 2025 タスク管理アプリ. All rights reserved.</p>
+        </div>
       </footer>
+    </div>
+  );
+}
+
+// 特徴カードコンポーネント
+function FeatureCard({ icon, title, description }) {
+  return (
+    <div className="flex flex-col items-center p-6 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-md transition-shadow">
+      <div className="mb-4">{icon}</div>
+      <h3 className="text-xl font-semibold mb-2">{title}</h3>
+      <p className="text-gray-600 text-center">{description}</p>
     </div>
   );
 }
