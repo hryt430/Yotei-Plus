@@ -1,257 +1,331 @@
 import React, { useState, useEffect } from 'react';
-import { Task, User } from '@/types';
+import { Calendar, User, Plus, X } from 'lucide-react';
+import { Task, User as UserType, TaskFormData } from '@/types';
+import { cn } from '@/lib/utils';
 
 interface TaskFormProps {
   task?: Task;
-  users?: User[];
-  onSubmit: (taskData: Partial<Task>) => void;
+  users?: UserType[];
+  onSubmit: (taskData: TaskFormData) => Promise<void>;
   onCancel: () => void;
+  isLoading?: boolean;
 }
 
-const TaskForm: React.FC<TaskFormProps> = ({ task, users = [], onSubmit, onCancel }) => {
-  const [formData, setFormData] = useState<Partial<Task>>({
+const TaskForm: React.FC<TaskFormProps> = ({ 
+  task, 
+  users = [], 
+  onSubmit, 
+  onCancel,
+  isLoading = false 
+}) => {
+  const [formData, setFormData] = useState<TaskFormData>({
     title: '',
     description: '',
     status: 'TODO',
     priority: 'MEDIUM',
-    dueDate: '',
-    assignedTo: undefined,
-    tags: [],
+    assignee_id: undefined,
+    due_date: undefined,
   });
   
-  const [tagInput, setTagInput] = useState('');
+  const [errors, setErrors] = useState<Partial<Record<keyof TaskFormData, string>>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // 編集モードの場合、タスクデータで初期化
   useEffect(() => {
     if (task) {
-      // 編集モードの場合、タスクデータを設定
       setFormData({
         title: task.title,
         description: task.description || '',
         status: task.status,
         priority: task.priority,
-        dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
-        assignedTo: task.assignedTo,
-        tags: task.tags || [],
+        assignee_id: task.assignee_id,
+        due_date: task.due_date ? task.due_date.split('T')[0] : undefined, // 日付部分のみ
       });
     }
   }, [task]);
   
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  // フォームフィールドの変更ハンドラー
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: value,
+      [name]: value === '' ? undefined : value,
     }));
+    
+    // エラーをクリア
+    if (errors[name as keyof TaskFormData]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: undefined,
+      }));
+    }
   };
   
-  const handleUserChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const userId = e.target.value;
-    if (!userId) {
-      setFormData(prev => ({
-        ...prev,
-        assignedTo: undefined,
-      }));
+  // バリデーション
+  const validateForm = (): boolean => {
+    const newErrors: typeof errors = {};
+    
+    if (!formData.title.trim()) {
+      newErrors.title = 'タイトルは必須です';
+    } else if (formData.title.length > 100) {
+      newErrors.title = 'タイトルは100文字以内で入力してください';
+    }
+    
+    if (formData.description && formData.description.length > 1000) {
+      newErrors.description = '説明は1000文字以内で入力してください';
+    }
+    
+    if (formData.due_date) {
+      const dueDate = new Date(formData.due_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (dueDate < today) {
+        newErrors.due_date = '期限は今日以降の日付を設定してください';
+      }
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+  
+  // フォーム送信
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
       return;
     }
     
-    const selectedUser = users.find(user => user.id === userId);
-    setFormData(prev => ({
-      ...prev,
-      assignedTo: selectedUser,
-    }));
-  };
-  
-  const handleAddTag = () => {
-    if (!tagInput.trim()) return;
+    setIsSubmitting(true);
     
-    setFormData(prev => ({
-      ...prev,
-      tags: [...(prev.tags || []), tagInput.trim()],
-    }));
-    setTagInput('');
+    try {
+      // 空文字列をundefinedに変換
+      const submitData: TaskFormData = {
+        ...formData,
+        title: formData.title.trim(),
+        description: formData.description?.trim() || undefined,
+        due_date: formData.due_date || undefined,
+        assignee_id: formData.assignee_id || undefined,
+      };
+      
+      await onSubmit(submitData);
+    } catch (error) {
+      console.error('Form submission error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
-  const handleRemoveTag = (tagToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: (prev.tags || []).filter(tag => tag !== tagToRemove),
-    }));
+  // 今日の日付を取得（YYYY-MM-DD形式）
+  const getTodayDate = () => {
+    return new Date().toISOString().split('T')[0];
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
+  const isEditMode = !!task;
   
   return (
-    <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-xl font-semibold mb-4">
-        {task ? 'タスクを編集' : '新しいタスク'}
-      </h2>
-      
-      <div className="mb-4">
-        <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-          タイトル *
-        </label>
-        <input
-          type="text"
-          id="title"
-          name="title"
-          value={formData.title}
-          onChange={handleChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          required
-        />
+    <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold text-gray-900">
+          {isEditMode ? 'タスクを編集' : '新しいタスク'}
+        </h2>
+        <button
+          onClick={onCancel}
+          className="text-gray-400 hover:text-gray-600 p-1 rounded"
+          disabled={isSubmitting}
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
       
-      <div className="mb-4">
-        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-          説明
-        </label>
-        <textarea
-          id="description"
-          name="description"
-          value={formData.description}
-          onChange={handleChange}
-          rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
-      </div>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* タイトル */}
         <div>
-          <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-            ステータス
+          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+            タイトル *
           </label>
-          <select
-            id="status"
-            name="status"
-            value={formData.status}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="TODO">未着手</option>
-            <option value="IN_PROGRESS">進行中</option>
-            <option value="DONE">完了</option>
-          </select>
-        </div>
-        
-        <div>
-          <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
-            優先度
-          </label>
-          <select
-            id="priority"
-            name="priority"
-            value={formData.priority}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="LOW">低</option>
-            <option value="MEDIUM">中</option>
-            <option value="HIGH">高</option>
-          </select>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        <div>
-          <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
-            期限日
-          </label>
-          <input
-            type="date"
-            id="dueDate"
-            name="dueDate"
-            value={formData.dueDate}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-        
-        <div>
-          <label htmlFor="assignedTo" className="block text-sm font-medium text-gray-700 mb-1">
-            担当者
-          </label>
-          <select
-            id="assignedTo"
-            name="assignedTo"
-            value={formData.assignedTo?.id || ''}
-            onChange={handleUserChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">未割り当て</option>
-            {users.map(user => (
-              <option key={user.id} value={user.id}>
-                {user.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      
-      <div className="mb-6">
-        <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1">
-          タグ
-        </label>
-        <div className="flex">
           <input
             type="text"
-            id="tags"
-            value={tagInput}
-            onChange={e => setTagInput(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="タグを入力..."
-            onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+            id="title"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            className={cn(
+              "w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+              errors.title ? "border-red-300" : "border-gray-300"
+            )}
+            placeholder="タスクのタイトルを入力..."
+            disabled={isSubmitting}
+            maxLength={100}
           />
-          <button
-            type="button"
-            onClick={handleAddTag}
-            className="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            追加
-          </button>
+          {errors.title && (
+            <p className="mt-1 text-sm text-red-600">{errors.title}</p>
+          )}
         </div>
         
-        {formData.tags && formData.tags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {formData.tags.map(tag => (
-              <span
-                key={tag}
-                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-              >
-                {tag}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveTag(tag)}
-                  className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </span>
-            ))}
+        {/* 説明 */}
+        <div>
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+            説明
+          </label>
+          <textarea
+            id="description"
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            rows={4}
+            className={cn(
+              "w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical",
+              errors.description ? "border-red-300" : "border-gray-300"
+            )}
+            placeholder="タスクの詳細を入力..."
+            disabled={isSubmitting}
+            maxLength={1000}
+          />
+          {errors.description && (
+            <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+          )}
+          {formData.description && (
+            <p className="mt-1 text-sm text-gray-500">
+              {formData.description.length}/1000 文字
+            </p>
+          )}
+        </div>
+        
+        {/* ステータスと優先度 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+              ステータス
+            </label>
+            <select
+              id="status"
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            >
+              <option value="TODO">未着手</option>
+              <option value="IN_PROGRESS">進行中</option>
+              <option value="DONE">完了</option>
+            </select>
           </div>
-        )}
-      </div>
-      
-      <div className="flex justify-end space-x-3">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        >
-          キャンセル
-        </button>
-        <button
-          type="submit"
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        >
-          {task ? '更新' : '作成'}
-        </button>
-      </div>
-    </form>
+          
+          <div>
+            <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
+              優先度
+            </label>
+            <select
+              id="priority"
+              name="priority"
+              value={formData.priority}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            >
+              <option value="LOW">低</option>
+              <option value="MEDIUM">中</option>
+              <option value="HIGH">高</option>
+            </select>
+          </div>
+        </div>
+        
+        {/* 期限と担当者 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="due_date" className="block text-sm font-medium text-gray-700 mb-1">
+              期限
+            </label>
+            <div className="relative">
+              <input
+                type="date"
+                id="due_date"
+                name="due_date"
+                value={formData.due_date || ''}
+                onChange={handleChange}
+                min={getTodayDate()}
+                className={cn(
+                  "w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pl-10",
+                  errors.due_date ? "border-red-300" : "border-gray-300"
+                )}
+                disabled={isSubmitting}
+              />
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            </div>
+            {errors.due_date && (
+              <p className="mt-1 text-sm text-red-600">{errors.due_date}</p>
+            )}
+          </div>
+          
+          <div>
+            <label htmlFor="assignee_id" className="block text-sm font-medium text-gray-700 mb-1">
+              担当者
+            </label>
+            <div className="relative">
+              <select
+                id="assignee_id"
+                name="assignee_id"
+                value={formData.assignee_id || ''}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pl-10"
+                disabled={isSubmitting}
+              >
+                <option value="">未割り当て</option>
+                {users.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.username} ({user.email})
+                  </option>
+                ))}
+              </select>
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            </div>
+          </div>
+        </div>
+        
+        {/* アクションボタン */}
+        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+            disabled={isSubmitting}
+          >
+            キャンセル
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            disabled={isSubmitting || isLoading}
+          >
+            {isSubmitting || isLoading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {isEditMode ? '更新中...' : '作成中...'}
+              </>
+            ) : (
+              <>
+                {isEditMode ? (
+                  'タスクを更新'
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-1" />
+                    タスクを作成
+                  </>
+                )}
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 };
 

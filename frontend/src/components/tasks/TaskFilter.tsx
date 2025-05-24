@@ -1,293 +1,309 @@
 import React, { useState } from 'react';
-import { User } from '@/types';
+import { Search, Filter, X, Calendar, User, ArrowUpDown } from 'lucide-react';
+import { User as UserType, TaskFilter as TaskFilterType } from '@/types';
+import { cn } from '@/lib/utils';
 
 interface TaskFilterProps {
-  users?: User[];
-  onFilter: (filters: {
-    status?: string[];
-    priority?: string[];
-    assignedTo?: string;
-    search?: string;
-    startDate?: string;
-    endDate?: string;
-    tags?: string[];
-  }) => void;
-  onSort: (field: string, direction: 'asc' | 'desc') => void;
+  users?: UserType[];
+  filters: TaskFilterType;
+  sort: {
+    field: string;
+    direction: 'asc' | 'desc';
+  };
+  onFilterChange: (filters: TaskFilterType) => void;
+  onSortChange: (field: string, direction: 'asc' | 'desc') => void;
+  onSearch: (query: string) => void;
+  searchQuery?: string;
 }
 
-const TaskFilter: React.FC<TaskFilterProps> = ({ users = [], onFilter, onSort }) => {
+const TaskFilter: React.FC<TaskFilterProps> = ({
+  users = [],
+  filters,
+  sort,
+  onFilterChange,
+  onSortChange,
+  onSearch,
+  searchQuery = '',
+}) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [filters, setFilters] = useState({
-    status: [] as string[],
-    priority: [] as string[],
-    assignedTo: '',
-    search: '',
-    startDate: '',
-    endDate: '',
-    tags: [] as string[],
-  });
-  const [sortField, setSortField] = useState('dueDate');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [tagInput, setTagInput] = useState('');
+  const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
 
-  const handleCheckboxChange = (filterType: 'status' | 'priority', value: string) => {
-    setFilters(prev => {
-      const currentValues = [...prev[filterType]];
-      const valueIndex = currentValues.indexOf(value);
-      
-      if (valueIndex === -1) {
-        currentValues.push(value);
-      } else {
-        currentValues.splice(valueIndex, 1);
-      }
-      
-      return {
-        ...prev,
-        [filterType]: currentValues,
-      };
+  // 検索ハンドラー
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setLocalSearchQuery(query);
+    onSearch(query);
+  };
+
+  // フィルター変更ハンドラー
+  const handleFilterChange = (key: keyof TaskFilterType, value: any) => {
+    onFilterChange({
+      ...filters,
+      [key]: value || undefined,
     });
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+  // ソート変更ハンドラー
+  const handleSortChange = (field: string) => {
+    const newDirection = sort.field === field && sort.direction === 'asc' ? 'desc' : 'asc';
+    onSortChange(field, newDirection);
   };
 
-  const handleTagAdd = () => {
-    if (tagInput.trim()) {
-      setFilters(prev => ({
-        ...prev,
-        tags: [...prev.tags, tagInput.trim()],
-      }));
-      setTagInput('');
+  // フィルタークリア
+  const handleClearFilters = () => {
+    onFilterChange({});
+    setLocalSearchQuery('');
+    onSearch('');
+  };
+
+  // アクティブなフィルター数を計算
+  const activeFiltersCount = Object.values(filters).filter(value => 
+    value !== undefined && value !== null && value !== ''
+  ).length;
+
+  // 日付範囲プリセット
+  const getDatePreset = (preset: string) => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    switch (preset) {
+      case 'today':
+        return { due_date_from: todayStr, due_date_to: todayStr };
+      case 'this_week':
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        return {
+          due_date_from: startOfWeek.toISOString().split('T')[0],
+          due_date_to: endOfWeek.toISOString().split('T')[0]
+        };
+      case 'overdue':
+        return { due_date_to: todayStr };
+      default:
+        return {};
     }
   };
 
-  const handleTagRemove = (tag: string) => {
-    setFilters(prev => ({
-      ...prev,
-      tags: prev.tags.filter(t => t !== tag),
-    }));
-  };
-
-  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSortField(e.target.value);
-    onSort(e.target.value, sortDirection);
-  };
-
-  const toggleSortDirection = () => {
-    const newDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-    setSortDirection(newDirection);
-    onSort(sortField, newDirection);
-  };
-
-  const applyFilters = () => {
-    onFilter(filters);
-  };
-
-  const resetFilters = () => {
-    setFilters({
-      status: [],
-      priority: [],
-      assignedTo: '',
-      search: '',
-      startDate: '',
-      endDate: '',
-      tags: [],
+  const handleDatePreset = (preset: string) => {
+    const dateFilter = getDatePreset(preset);
+    onFilterChange({
+      ...filters,
+      ...dateFilter,
     });
-    setSortField('dueDate');
-    setSortDirection('asc');
-    onFilter({});
-    onSort('dueDate', 'asc');
   };
 
   return (
-    <div className="bg-white shadow rounded-lg p-4 mb-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="relative w-full md:w-1/3 mr-4">
-          <input
-            type="text"
-            name="search"
-            value={filters.search}
-            onChange={handleInputChange}
-            placeholder="タスクを検索..."
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={applyFilters}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
-        <div className="flex items-center space-x-2">
-          <select
-            value={sortField}
-            onChange={handleSortChange}
-            className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="dueDate">期日</option>
-            <option value="priority">優先度</option>
-            <option value="title">タイトル</option>
-            <option value="createdAt">作成日</option>
-          </select>
-          <button
-            onClick={toggleSortDirection}
-            className="px-3 py-2 border rounded-lg focus:outline-none hover:bg-gray-50"
-          >
-            {sortDirection === 'asc' ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-              </svg>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      {/* メインフィルターバー */}
+      <div className="p-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          {/* 検索 */}
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              value={localSearchQuery}
+              onChange={handleSearchChange}
+              placeholder="タスクを検索..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            {localSearchQuery && (
+              <button
+                onClick={() => {
+                  setLocalSearchQuery('');
+                  onSearch('');
+                }}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
             )}
-          </button>
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="px-3 py-2 border rounded-lg focus:outline-none hover:bg-gray-50"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-            </svg>
-          </button>
+          </div>
+
+          {/* クイックフィルター */}
+          <div className="flex items-center space-x-2">
+            {/* ステータス */}
+            <select
+              value={filters.status || ''}
+              onChange={(e) => handleFilterChange('status', e.target.value as any)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">すべて</option>
+              <option value="TODO">未着手</option>
+              <option value="IN_PROGRESS">進行中</option>
+              <option value="DONE">完了</option>
+            </select>
+
+            {/* 優先度 */}
+            <select
+              value={filters.priority || ''}
+              onChange={(e) => handleFilterChange('priority', e.target.value as any)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">すべて</option>
+              <option value="LOW">低</option>
+              <option value="MEDIUM">中</option>
+              <option value="HIGH">高</option>
+            </select>
+
+            {/* ソート */}
+            <div className="flex items-center space-x-1">
+              <select
+                value={sort.field}
+                onChange={(e) => handleSortChange(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="created_at">作成日</option>
+                <option value="updated_at">更新日</option>
+                <option value="due_date">期限</option>
+                <option value="priority">優先度</option>
+                <option value="title">タイトル</option>
+              </select>
+              <button
+                onClick={() => onSortChange(sort.field, sort.direction === 'asc' ? 'desc' : 'asc')}
+                className="p-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm"
+                title={`${sort.direction === 'asc' ? '降順' : '昇順'}に変更`}
+              >
+                <ArrowUpDown className={cn(
+                  "h-4 w-4 transition-transform",
+                  sort.direction === 'desc' && "rotate-180"
+                )} />
+              </button>
+            </div>
+
+            {/* フィルター展開ボタン */}
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className={cn(
+                "flex items-center px-3 py-2 border rounded-md text-sm transition-colors",
+                isExpanded || activeFiltersCount > 0
+                  ? "border-blue-500 bg-blue-50 text-blue-700"
+                  : "border-gray-300 hover:bg-gray-50"
+              )}
+            >
+              <Filter className="h-4 w-4 mr-1" />
+              詳細フィルター
+              {activeFiltersCount > 0 && (
+                <span className="ml-1 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* 展開可能な詳細フィルター */}
       {isExpanded && (
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <h4 className="font-medium mb-2">ステータス</h4>
-            <div className="space-y-1">
-              {['未着手', '進行中', '完了', '延期'].map((status) => (
-                <div key={status} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id={`status-${status}`}
-                    checked={filters.status.includes(status)}
-                    onChange={() => handleCheckboxChange('status', status)}
-                    className="mr-2"
-                  />
-                  <label htmlFor={`status-${status}`}>{status}</label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-medium mb-2">優先度</h4>
-            <div className="space-y-1">
-              {['低', '中', '高', '緊急'].map((priority) => (
-                <div key={priority} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id={`priority-${priority}`}
-                    checked={filters.priority.includes(priority)}
-                    onChange={() => handleCheckboxChange('priority', priority)}
-                    className="mr-2"
-                  />
-                  <label htmlFor={`priority-${priority}`}>{priority}</label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-medium mb-2">担当者</h4>
-            <select
-              name="assignedTo"
-              value={filters.assignedTo}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">すべて</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <h4 className="font-medium mb-2">期間</h4>
-            <div className="flex items-center space-x-2">
-              <input
-                type="date"
-                name="startDate"
-                value={filters.startDate}
-                onChange={handleInputChange}
-                className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <span>〜</span>
-              <input
-                type="date"
-                name="endDate"
-                value={filters.endDate}
-                onChange={handleInputChange}
-                className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="md:col-span-2">
-            <h4 className="font-medium mb-2">タグ</h4>
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              {filters.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm flex items-center"
-                >
-                  {tag}
-                  <button
-                    onClick={() => handleTagRemove(tag)}
-                    className="ml-1 text-blue-500 hover:text-blue-700"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex items-center">
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                placeholder="タグを追加..."
-                className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onKeyPress={(e) => e.key === 'Enter' && handleTagAdd()}
-              />
-              <button
-                onClick={handleTagAdd}
-                className="ml-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <div className="border-t border-gray-200 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* 担当者フィルター */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <User className="inline h-4 w-4 mr-1" />
+                担当者
+              </label>
+              <select
+                value={filters.assignee_id || ''}
+                onChange={(e) => handleFilterChange('assignee_id', e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                追加
+                <option value="">すべて</option>
+                <option value="unassigned">未割り当て</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.username}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 作成者フィルター */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                作成者
+              </label>
+              <select
+                value={filters.created_by || ''}
+                onChange={(e) => handleFilterChange('created_by', e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">すべて</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.username}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 期限プリセット */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Calendar className="inline h-4 w-4 mr-1" />
+                期限
+              </label>
+              <select
+                value=""
+                onChange={(e) => e.target.value && handleDatePreset(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">期間を選択</option>
+                <option value="today">今日</option>
+                <option value="this_week">今週</option>
+                <option value="overdue">期限切れ</option>
+              </select>
+            </div>
+
+            {/* カスタム期限範囲 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                期限開始日
+              </label>
+              <input
+                type="date"
+                value={filters.due_date_from || ''}
+                onChange={(e) => handleFilterChange('due_date_from', e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                期限終了日
+              </label>
+              <input
+                type="date"
+                value={filters.due_date_to || ''}
+                onChange={(e) => handleFilterChange('due_date_to', e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* フィルターアクション */}
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+            <div className="text-sm text-gray-500">
+              {activeFiltersCount > 0 && (
+                <span>{activeFiltersCount}個のフィルターが適用中</span>
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleClearFilters}
+                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                すべてクリア
+              </button>
+              <button
+                onClick={() => setIsExpanded(false)}
+                className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800"
+              >
+                閉じる
               </button>
             </div>
-          </div>
-
-          <div className="md:col-span-3 flex justify-end space-x-2 mt-4">
-            <button
-              onClick={resetFilters}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              リセット
-            </button>
-            <button
-              onClick={applyFilters}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              フィルター適用
-            </button>
           </div>
         </div>
       )}
