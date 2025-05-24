@@ -1,6 +1,3 @@
-// src/api/notifications/route.ts
-// 通知関連のAPI関数
-
 import { ApiResponse, Notification } from '@/types'
 import { apiClient } from '@/api/client'
 
