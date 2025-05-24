@@ -6,7 +6,7 @@ import (
 
 	"github.com/hryt430/Yotei+/config"
 	commonDB "github.com/hryt430/Yotei+/internal/common/infrastructure/database"
-	"github.com/hryt430/Yotei+/internal/modules/auth/interface/database"
+	"github.com/hryt430/Yotei+/internal/modules/task/interface/database"
 )
 
 type SqlHandler struct {

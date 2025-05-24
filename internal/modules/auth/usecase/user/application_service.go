@@ -50,7 +50,7 @@ func (u *UserService) CreateUser(user *domain.User) (*domain.User, error) {
 }
 
 // GetUserByEmail はメールアドレスでユーザーを検索する
-func (u *UserService) GetUserByEmail(email string) (*domain.User, error) {
+func (u *UserService) FindUserByEmail(email string) (*domain.User, error) {
 	user, err := u.UserRepository.FindUserByEmail(email)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func (u *UserService) GetUserByEmail(email string) (*domain.User, error) {
 }
 
 // GetUserByID はIDでユーザーを検索する
-func (u *UserService) GetUserByID(id uuid.UUID) (*domain.User, error) {
+func (u *UserService) FindUserByID(id uuid.UUID) (*domain.User, error) {
 	user, err := u.UserRepository.FindUserByID(id)
 	if err != nil {
 		return nil, err
