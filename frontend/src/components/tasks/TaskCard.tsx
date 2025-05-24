@@ -1,105 +1,204 @@
 import React from 'react';
 import Link from 'next/link';
-import { Task } from '@/types';
-import { formatDate, getRelativeDateLabel, isOverdue } from '@/lib/utils/date-utils';
+import { Edit, Trash2, Calendar, User, AlertCircle } from 'lucide-react';
+import { Task, User as UserType } from '@/types';
+import { 
+  formatDate, 
+  getRelativeDateLabel, 
+  getStatusColor, 
+  getPriorityColor, 
+  getStatusLabel, 
+  getPriorityLabel,
+  cn 
+} from '@/lib/utils';
 
 interface TaskCardProps {
   task: Task;
+  users?: UserType[];
   onEdit?: (task: Task) => void;
   onDelete?: (taskId: string) => void;
+  onStatusChange?: (taskId: string, status: Task['status']) => void;
+  compact?: boolean;
 }
 
-const priorityClasses = {
-  LOW: 'bg-blue-50 text-blue-600 border-blue-200',
-  MEDIUM: 'bg-yellow-50 text-yellow-600 border-yellow-200',
-  HIGH: 'bg-red-50 text-red-600 border-red-200',
-};
+const TaskCard: React.FC<TaskCardProps> = ({ 
+  task, 
+  users = [],
+  onEdit, 
+  onDelete, 
+  onStatusChange,
+  compact = false 
+}) => {
+  const assignedUser = task.assignee_id 
+    ? users.find(user => user.id === task.assignee_id)
+    : undefined;
+    
+  const creator = users.find(user => user.id === task.created_by);
+  
+  const dueDateLabel = task.due_date ? getRelativeDateLabel(task.due_date) : '';
+  const isOverdue = task.due_date && 
+    new Date(task.due_date) < new Date() && 
+    task.status !== 'DONE';
 
-const statusClasses = {
-  TODO: 'bg-gray-50 text-gray-600 border-gray-200',
-  IN_PROGRESS: 'bg-indigo-50 text-indigo-600 border-indigo-200',
-  DONE: 'bg-green-50 text-green-600 border-green-200',
-};
+  const handleStatusChange = (newStatus: Task['status']) => {
+    if (onStatusChange) {
+      onStatusChange(task.id, newStatus);
+    }
+  };
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) => {
-  const dueDateLabel = task.dueDate ? getRelativeDateLabel(task.dueDate) : '';
-  const isTaskOverdue = task.dueDate && isOverdue(task.dueDate) && task.status !== 'DONE';
+  const handleEdit = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onEdit) {
+      onEdit(task);
+    }
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onDelete && confirm('このタスクを削除しますか？')) {
+      onDelete(task.id);
+    }
+  };
+
+  if (compact) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow">
+        <Link href={`/tasks/${task.id}`} className="block">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-medium text-gray-900 truncate">
+                {task.title}
+              </h3>
+              <div className="flex items-center space-x-2 mt-1">
+                <span className={cn("text-xs px-2 py-1 rounded-full", getStatusColor(task.status))}>
+                  {getStatusLabel(task.status)}
+                </span>
+                <span className={cn("text-xs px-2 py-1 rounded-full", getPriorityColor(task.priority))}>
+                  {getPriorityLabel(task.priority)}
+                </span>
+              </div>
+            </div>
+            {task.due_date && (
+              <div className={cn(
+                "text-xs flex items-center ml-2",
+                isOverdue ? "text-red-600 font-medium" : "text-gray-500"
+              )}>
+                <Calendar className="h-3 w-3 mr-1" />
+                {dueDateLabel}
+              </div>
+            )}
+          </div>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-4 mb-3">
-      <div className="flex items-start justify-between mb-2">
-        <Link href={`/tasks/${task.id}`} className="text-lg font-medium text-gray-900 hover:text-blue-600 transition-colors">
-          {task.title}
+      <div className="flex items-start justify-between mb-3">
+        <Link href={`/tasks/${task.id}`} className="flex-1 group">
+          <h3 className="text-lg font-medium text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+            {task.title}
+          </h3>
         </Link>
         
-        <div className="flex space-x-2">
+        <div className="flex items-center space-x-1 ml-3 opacity-0 group-hover:opacity-100 transition-opacity">
           {onEdit && (
             <button
-              onClick={() => onEdit(task)}
-              className="text-gray-400 hover:text-gray-700"
-              aria-label="タスクを編集"
+              onClick={handleEdit}
+              className="p-1 text-gray-400 hover:text-blue-600 rounded"
+              title="編集"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-2.207 2.207L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-              </svg>
+              <Edit className="h-4 w-4" />
             </button>
           )}
           
           {onDelete && (
             <button
-              onClick={() => onDelete(task.id)}
-              className="text-gray-400 hover:text-red-600"
-              aria-label="タスクを削除"
+              onClick={handleDelete}
+              className="p-1 text-gray-400 hover:text-red-600 rounded"
+              title="削除"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
+              <Trash2 className="h-4 w-4" />
             </button>
           )}
         </div>
       </div>
       
       {task.description && (
-        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{task.description}</p>
+        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+          {task.description}
+        </p>
       )}
       
+      {/* ステータスと優先度 */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <span className={`text-xs px-2 py-1 rounded-full border ${statusClasses[task.status]}`}>
-          {task.status === 'TODO' ? '未着手' : task.status === 'IN_PROGRESS' ? '進行中' : '完了'}
-        </span>
-        
-        <span className={`text-xs px-2 py-1 rounded-full border ${priorityClasses[task.priority]}`}>
-          {task.priority === 'LOW' ? '低' : task.priority === 'MEDIUM' ? '中' : '高'}優先度
-        </span>
-        
-        {task.tags && task.tags.map(tag => (
-          <span key={tag} className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
-            {tag}
+        {onStatusChange ? (
+          <select
+            value={task.status}
+            onChange={(e) => handleStatusChange(e.target.value as Task['status'])}
+            className={cn(
+              "text-xs px-2 py-1 rounded-full border cursor-pointer",
+              getStatusColor(task.status)
+            )}
+          >
+            <option value="TODO">未着手</option>
+            <option value="IN_PROGRESS">進行中</option>
+            <option value="DONE">完了</option>
+          </select>
+        ) : (
+          <span className={cn("text-xs px-2 py-1 rounded-full border", getStatusColor(task.status))}>
+            {getStatusLabel(task.status)}
           </span>
-        ))}
+        )}
+        
+        <span className={cn("text-xs px-2 py-1 rounded-full border", getPriorityColor(task.priority))}>
+          {getPriorityLabel(task.priority)}優先度
+        </span>
+
+        {isOverdue && (
+          <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-800 border border-red-200 flex items-center">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            期限切れ
+          </span>
+        )}
       </div>
       
+      {/* メタデータ */}
       <div className="flex items-center justify-between text-xs text-gray-500">
-        <div className="flex items-center">
-          {task.assignedTo && (
-            <div className="flex items-center mr-3">
-              <span className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium mr-1">
-                {task.assignedTo.name.charAt(0)}
-              </span>
-              <span>{task.assignedTo.name}</span>
+        <div className="flex items-center space-x-4">
+          {assignedUser && (
+            <div className="flex items-center">
+              <User className="h-3 w-3 mr-1" />
+              <span className="truncate max-w-24">{assignedUser.username}</span>
             </div>
           )}
           
-          <span>作成: {formatDate(task.createdAt)}</span>
+          {creator && (
+            <div className="flex items-center">
+              <span>作成者: {creator.username}</span>
+            </div>
+          )}
         </div>
         
-        {task.dueDate && (
-          <div className={`flex items-center ${isTaskOverdue ? 'text-red-600 font-medium' : ''}`}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
+        {task.due_date && (
+          <div className={cn(
+            "flex items-center",
+            isOverdue ? "text-red-600 font-medium" : "text-gray-500"
+          )}>
+            <Calendar className="h-3 w-3 mr-1" />
             <span>{dueDateLabel}</span>
           </div>
+        )}
+      </div>
+
+      {/* 作成日・更新日 */}
+      <div className="flex items-center justify-between text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">
+        <span>作成: {formatDate(task.created_at)}</span>
+        {task.updated_at !== task.created_at && (
+          <span>更新: {formatDate(task.updated_at)}</span>
         )}
       </div>
     </div>
