@@ -34,7 +34,7 @@ export default function TasksPage() {
     editTask,
     removeTask,
     updateTaskStatus,
-    searchTasks,
+    performSearch,
     clearError
   } = useTasks();
 
@@ -83,7 +83,7 @@ export default function TasksPage() {
   const debouncedSearch = debounce(async (query: string) => {
     if (query.trim()) {
       try {
-        await searchTasks(query);
+        await performSearch(query);
       } catch (error) {
         console.error('Search failed:', error);
       }

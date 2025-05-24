@@ -19,7 +19,8 @@ import {
 } from '@/lib/utils';
 
 // カレンダーのコンポーネント型定義
-type CalendarValue = Date | null;
+type ValuePiece = Date | null;
+type CalendarValue = ValuePiece | [ValuePiece, ValuePiece];
 
 export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -114,9 +115,15 @@ export default function Dashboard() {
 
   // 日付変更ハンドラー
   const handleDateChange = (value: CalendarValue) => {
+    // 単一の日付選択の場合
     if (value instanceof Date) {
       setSelectedDate(value);
+    } 
+    // 範囲選択の場合（配列で最初の要素が存在する場合）
+    else if (Array.isArray(value) && value.length > 0 && value[0] instanceof Date) {
+      setSelectedDate(value[0]);
     }
+    // null や undefined の場合は何もしない
   };
 
   // タスク作成ページへ移動
