@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/hryt430/Yotei+/internal/modules/notification/domain"
 	"github.com/hryt430/Yotei+/internal/modules/notification/usecase/input"
@@ -13,10 +12,10 @@ import (
 )
 
 type notificationUseCase struct {
-	repository     persistence.NotificationRepository
-	appGateway     output.AppNotificationGateway
-	lineGateway    output.LineNotificationGateway
-	webhookGateway output.WebhookOutput
+	repository  persistence.NotificationRepository
+	appGateway  output.AppNotificationGateway
+	lineGateway output.LineNotificationGateway
+	// webhookGateway output.WebhookOutput
 }
 
 // NewNotificationUseCase は通知ユースケースのインスタンスを作成する
@@ -24,13 +23,13 @@ func NewNotificationUseCase(
 	repository persistence.NotificationRepository,
 	appGateway output.AppNotificationGateway,
 	lineGateway output.LineNotificationGateway,
-	webhookGateway output.WebhookOutput,
+	// webhookGateway output.WebhookOutput,
 ) input.NotificationUseCase {
 	return &notificationUseCase{
-		repository:     repository,
-		appGateway:     appGateway,
-		lineGateway:    lineGateway,
-		webhookGateway: webhookGateway,
+		repository:  repository,
+		appGateway:  appGateway,
+		lineGateway: lineGateway,
+		// webhookGateway: webhookGateway,
 	}
 }
 
@@ -157,10 +156,10 @@ func (uc *notificationUseCase) SendNotification(ctx context.Context, id string) 
 			}
 
 			// Webhookイベント送信
-			_ = uc.webhookGateway.SendWebhook(ctx, output.EventNotificationFailed, map[string]interface{}{
-				"notification_id": notification.ID,
-				"error":           sendError.Error(),
-			})
+			// _ = uc.webhookGateway.SendWebhook(ctx, output.EventNotificationFailed, map[string]interface{}{
+			// 	"notification_id": notification.ID,
+			// 	"error":           sendError.Error(),
+			// })
 
 			return fmt.Errorf("failed to send notification: %w", sendError)
 		}
@@ -173,10 +172,10 @@ func (uc *notificationUseCase) SendNotification(ctx context.Context, id string) 
 	}
 
 	// Webhookイベント送信
-	_ = uc.webhookGateway.SendWebhook(ctx, output.EventNotificationSent, map[string]interface{}{
-		"notification_id": notification.ID,
-		"sent_at":         time.Now(),
-	})
+	// _ = uc.webhookGateway.SendWebhook(ctx, output.EventNotificationSent, map[string]interface{}{
+	// 	"notification_id": notification.ID,
+	// 	"sent_at":         time.Now(),
+	// })
 
 	return nil
 }
@@ -194,10 +193,10 @@ func (uc *notificationUseCase) MarkNotificationAsRead(ctx context.Context, id st
 	}
 
 	// Webhookイベント送信
-	_ = uc.webhookGateway.SendWebhook(ctx, output.EventNotificationRead, map[string]interface{}{
-		"notification_id": id,
-		"read_at":         time.Now(),
-	})
+	// _ = uc.webhookGateway.SendWebhook(ctx, output.EventNotificationRead, map[string]interface{}{
+	// 	"notification_id": id,
+	// 	"read_at":         time.Now(),
+	// })
 
 	return nil
 }

@@ -86,7 +86,7 @@ func (g *LineGateway) SendLineNotification(ctx context.Context, lineUserID, mess
 
 	// ヘッダーの設定
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+g.config.LineChannelToken)
+	req.Header.Set("Authorization", "Bearer "+g.config.External.LineChannelToken)
 
 	// リクエストの送信
 	resp, err := g.httpClient.Do(req)

@@ -1,82 +1,85 @@
+// internal/modules/notification/infrastructure/gateway/app_notification_gateway.go
 package gateway
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"time"
 
 	"github.com/hryt430/Yotei+/config"
+	"github.com/hryt430/Yotei+/internal/modules/notification/domain"
+	"github.com/hryt430/Yotei+/internal/modules/notification/interface/websocket"
 	"github.com/hryt430/Yotei+/internal/modules/notification/usecase/output"
+	"github.com/hryt430/Yotei+/internal/modules/notification/usecase/persistence"
 	"github.com/hryt430/Yotei+/pkg/logger"
 )
 
-// WebhookGateway はWebhook送信のゲートウェイ実装
-type WebhookGateway struct {
+// AppNotificationGateway はアプリ内通知のゲートウェイ実装
+type AppNotificationGateway struct {
 	config     *config.Config
-	httpClient *http.Client
+	repository persistence.NotificationRepository
+	wsHub      *websocket.Hub // WebSocketハブ
 	logger     logger.Logger
 }
 
-// NewWebhookGateway は新しいWebhookGatewayを作成する
-func NewWebhookGateway(config *config.Config, logger logger.Logger) output.WebhookOutput {
-	return &WebhookGateway{
-		config: config,
-		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
-		},
-		logger: logger,
+// NewAppNotificationGateway は新しいAppNotificationGatewayを作成する
+func NewAppNotificationGateway(
+	config *config.Config,
+	repository persistence.NotificationRepository,
+	wsHub *websocket.Hub,
+	logger logger.Logger,
+) output.AppNotificationGateway {
+	return &AppNotificationGateway{
+		config:     config,
+		repository: repository,
+		wsHub:      wsHub,
+		logger:     logger,
 	}
 }
 
-// SendWebhook はWebhookを送信する
-func (g *WebhookGateway) SendWebhook(ctx context.Context, event output.WebhookEvent, payload interface{}) error {
-	// Webhookが設定されていない場合は何もしない
-	if g.config.WebhookURL == "" {
-		return nil
+// SendNotification はアプリ内通知を送信する
+func (g *AppNotificationGateway) SendNotification(ctx context.Context, userID, title, message string, metadata map[string]string) error {
+	// 通知オブジェクトを作成
+	notification := domain.NewNotification(
+		userID,
+		domain.AppNotification,
+		title,
+		message,
+		metadata,
+	)
+
+	// データベースに保存
+	if err := g.repository.Save(ctx, notification); err != nil {
+		g.logger.Error("Failed to save app notification", logger.Error(err))
+		return fmt.Errorf("failed to save app notification: %w", err)
 	}
 
-	// ペイロードの構築
-	webhookPayload := map[string]interface{}{
-		"event":     event,
-		"payload":   payload,
-		"timestamp": time.Now().Unix(),
+	// WebSocketでリアルタイム送信
+	if g.wsHub != nil {
+		g.wsHub.SendNotification(notification)
+		g.logger.Info("Sent real-time notification", logger.Any("userID", userID), logger.Any("notificationID", notification.ID))
 	}
 
-	// JSONに変換
-	jsonData, err := json.Marshal(webhookPayload)
-	if err != nil {
-		g.logger.Error("Failed to marshal webhook payload", logger.Error(err))
-		return fmt.Errorf("failed to marshal webhook payload: %w", err)
-	}
-
-	// リクエストの作成
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.config.WebhookURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		g.logger.Error("Failed to create webhook request", logger.Error(err))
-		return fmt.Errorf("failed to create webhook request: %w", err)
-	}
-
-	// ヘッダーの設定
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Webhook-Secret", g.config.WebhookSecret)
-
-	// リクエストの送信
-	resp, err := g.httpClient.Do(req)
-	if err != nil {
-		g.logger.Error("Failed to send webhook", logger.Error(err))
-		return fmt.Errorf("failed to send webhook: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// レスポンスの確認
-	if resp.StatusCode != http.StatusOK {
-		g.logger.Error("Webhook endpoint returned non-OK status", logger.Any("status", resp.Status))
-		return fmt.Errorf("webhook endpoint returned non-OK status: %s", resp.Status)
-	}
-
-	g.logger.Info("Successfully sent webhook", logger.Any("event", event))
 	return nil
+}
+
+// MarkAsRead は通知を既読としてマークする
+func (g *AppNotificationGateway) MarkAsRead(ctx context.Context, notificationID string) error {
+	if err := g.repository.UpdateStatus(ctx, notificationID, domain.StatusRead); err != nil {
+		g.logger.Error("Failed to mark notification as read", logger.Any("notificationID", notificationID), logger.Error(err))
+		return fmt.Errorf("failed to mark notification as read: %w", err)
+	}
+
+	g.logger.Info("Marked notification as read", logger.Any("notificationID", notificationID))
+	return nil
+}
+
+// GetUnreadCount はユーザーの未読通知数を取得する
+func (g *AppNotificationGateway) GetUnreadCount(ctx context.Context, userID string) (int, error) {
+	count, err := g.repository.CountByUserIDAndStatus(ctx, userID, domain.StatusSent)
+	if err != nil {
+		g.logger.Error("Failed to get unread count", logger.Any("userID", userID), logger.Error(err))
+		return 0, fmt.Errorf("failed to get unread count: %w", err)
+	}
+
+	return count, nil
 }

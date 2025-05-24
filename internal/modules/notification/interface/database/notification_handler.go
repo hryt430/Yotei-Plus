@@ -15,7 +15,7 @@ import (
 // NotificationServiceRepository はSQLを使用した通知リポジトリの実装
 type NotificationServiceRepository struct {
 	SqlHandler
-	logger logger.Logger
+	Logger logger.Logger
 }
 
 // Save は通知を保存する
@@ -23,7 +23,7 @@ func (r *NotificationServiceRepository) Save(ctx context.Context, notification *
 	// メタデータをJSON文字列に変換
 	metadataJSON, err := json.Marshal(notification.Metadata)
 	if err != nil {
-		r.logger.Error("Failed to marshal metadata", logger.Error(err))
+		r.Logger.Error("Failed to marshal metadata", logger.Error(err))
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
@@ -69,7 +69,7 @@ func (r *NotificationServiceRepository) Save(ctx context.Context, notification *
 	)
 
 	if err != nil {
-		r.logger.Error("Failed to save notification", logger.Any("id", notification.ID), logger.Error(err))
+		r.Logger.Error("Failed to save notification", logger.Any("id", notification.ID), logger.Error(err))
 		return fmt.Errorf("failed to save notification: %w", err)
 	}
 
@@ -110,13 +110,13 @@ func (r *NotificationServiceRepository) FindByID(ctx context.Context, id string)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil // 通知が見つからない場合
 		}
-		r.logger.Error("Failed to find notification", logger.Any("id", id), logger.Error(err))
+		r.Logger.Error("Failed to find notification", logger.Any("id", id), logger.Error(err))
 		return nil, fmt.Errorf("failed to find notification: %w", err)
 	}
 
 	// メタデータのデコード
 	if err := json.Unmarshal(metadataJSON, &notification.Metadata); err != nil {
-		r.logger.Error("Failed to unmarshal metadata", logger.Error(err))
+		r.Logger.Error("Failed to unmarshal metadata", logger.Error(err))
 		return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 	}
 
@@ -144,7 +144,7 @@ func (r *NotificationServiceRepository) FindByUserID(ctx context.Context, userID
 
 	rows, err := r.QueryContext(ctx, query, userID, limit, offset)
 	if err != nil {
-		r.logger.Error("Failed to query notifications", logger.Any("userID", userID), logger.Error(err))
+		r.Logger.Error("Failed to query notifications", logger.Any("userID", userID), logger.Error(err))
 		return nil, fmt.Errorf("failed to query notifications: %w", err)
 	}
 	defer rows.Close()
@@ -171,13 +171,13 @@ func (r *NotificationServiceRepository) FindByUserID(ctx context.Context, userID
 		)
 
 		if err != nil {
-			r.logger.Error("Failed to scan notification row", logger.Error(err))
+			r.Logger.Error("Failed to scan notification row", logger.Error(err))
 			return nil, fmt.Errorf("failed to scan notification row: %w", err)
 		}
 
 		// メタデータのデコード
 		if err := json.Unmarshal(metadataJSON, &notification.Metadata); err != nil {
-			r.logger.Error("Failed to unmarshal metadata", logger.Error(err))
+			r.Logger.Error("Failed to unmarshal metadata", logger.Error(err))
 			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 		}
 
@@ -190,7 +190,7 @@ func (r *NotificationServiceRepository) FindByUserID(ctx context.Context, userID
 	}
 
 	if err := rows.Err(); err != nil {
-		r.logger.Error("Error iterating notification rows", logger.Error(err))
+		r.Logger.Error("Error iterating notification rows", logger.Error(err))
 		return nil, fmt.Errorf("error iterating notification rows: %w", err)
 	}
 
@@ -220,13 +220,13 @@ func (r *NotificationServiceRepository) UpdateStatus(ctx context.Context, id str
 
 	result, err := r.ExecContext(ctx, query, status, now, sentAt, id)
 	if err != nil {
-		r.logger.Error("Failed to update notification status", logger.Any("id", id), logger.Error(err))
+		r.Logger.Error("Failed to update notification status", logger.Any("id", id), logger.Error(err))
 		return fmt.Errorf("failed to update notification status: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		r.logger.Error("Failed to get rows affected", logger.Error(err))
+		r.Logger.Error("Failed to get rows affected", logger.Error(err))
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
 
@@ -248,7 +248,7 @@ func (r *NotificationServiceRepository) CountByUserIDAndStatus(ctx context.Conte
 	var count int
 	err := r.QueryRowContext(ctx, query, userID, status).Scan(&count)
 	if err != nil {
-		r.logger.Error("Failed to count notifications", logger.Any("userID", userID), logger.Any("status", status), logger.Error(err))
+		r.Logger.Error("Failed to count notifications", logger.Any("userID", userID), logger.Any("status", status), logger.Error(err))
 		return 0, fmt.Errorf("failed to count notifications: %w", err)
 	}
 
@@ -271,7 +271,7 @@ func (r *NotificationServiceRepository) FindPendingNotifications(ctx context.Con
 
 	rows, err := r.QueryContext(ctx, query, domain.StatusPending, limit)
 	if err != nil {
-		r.logger.Error("Failed to query pending notifications", logger.Error(err))
+		r.Logger.Error("Failed to query pending notifications", logger.Error(err))
 		return nil, fmt.Errorf("failed to query pending notifications: %w", err)
 	}
 	defer rows.Close()
@@ -298,13 +298,13 @@ func (r *NotificationServiceRepository) FindPendingNotifications(ctx context.Con
 		)
 
 		if err != nil {
-			r.logger.Error("Failed to scan notification row", logger.Error(err))
+			r.Logger.Error("Failed to scan notification row", logger.Error(err))
 			return nil, fmt.Errorf("failed to scan notification row: %w", err)
 		}
 
 		// メタデータのデコード
 		if err := json.Unmarshal(metadataJSON, &notification.Metadata); err != nil {
-			r.logger.Error("Failed to unmarshal metadata", logger.Error(err))
+			r.Logger.Error("Failed to unmarshal metadata", logger.Error(err))
 			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 		}
 
@@ -317,7 +317,7 @@ func (r *NotificationServiceRepository) FindPendingNotifications(ctx context.Con
 	}
 
 	if err := rows.Err(); err != nil {
-		r.logger.Error("Error iterating notification rows", logger.Error(err))
+		r.Logger.Error("Error iterating notification rows", logger.Error(err))
 		return nil, fmt.Errorf("error iterating notification rows: %w", err)
 	}
 
