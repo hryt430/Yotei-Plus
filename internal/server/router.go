@@ -1,4 +1,4 @@
-package api
+package server
 
 import (
 	"github.com/gin-gonic/gin"
@@ -9,15 +9,32 @@ import (
 
 	authMiddleware "github.com/hryt430/Yotei+/internal/modules/auth/infrastructure/middleware"
 	authController "github.com/hryt430/Yotei+/internal/modules/auth/interface/controller"
+	authService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/auth"
 	tokenService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/token"
+	userService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/user"
+
 	notificationController "github.com/hryt430/Yotei+/internal/modules/notification/interface/controller"
-	// その他必要なコントローラやミドルウェアをインポート
+	notificationUseCase "github.com/hryt430/Yotei+/internal/modules/notification/usecase/input"
+
+	taskController "github.com/hryt430/Yotei+/internal/modules/task/interface/controller"
+	taskUseCase "github.com/hryt430/Yotei+/internal/modules/task/usecase"
 )
 
+// Dependencies は各モジュールの依存関係を格納する構造体
+type Dependencies struct {
+	AuthService         authService.AuthService
+	TokenService        tokenService.TokenService
+	UserService         userService.UserService
+	NotificationUseCase notificationUseCase.NotificationUseCase
+	TaskService         taskUseCase.TaskService
+	Logger              logger.Logger
+	Config              *config.Config
+}
+
 // SetupRouter はAPIルーターをセットアップする
-func SetupRouter(cfg *config.Config, log logger.Logger) *gin.Engine {
+func SetupRouter(deps *Dependencies) *gin.Engine {
 	// リリースモードの設定
-	if cfg.IsProduction() {
+	if deps.Config.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
@@ -25,35 +42,42 @@ func SetupRouter(cfg *config.Config, log logger.Logger) *gin.Engine {
 	router := gin.New()
 
 	// 共通ミドルウェアの適用
-	router.Use(middleware.RecoveryMiddleware(log))
-	router.Use(middleware.LoggerMiddleware(log))
-	router.Use(middleware.CORSMiddleware(cfg))
+	router.Use(middleware.RecoveryMiddleware(deps.Logger))
+	router.Use(middleware.LoggerMiddleware(deps.Logger))
+	router.Use(middleware.CORSMiddleware(deps.Config))
 
 	// Next.jsとのCSRF連携
-	if cfg.EnableCSRF() {
+	if deps.Config.EnableCSRF() {
 		router.Use(middleware.SetCSRFToken())
 		router.Use(middleware.CSRFProtection())
 	}
 
+	// ヘルスチェックエンドポイント
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status":  "ok",
+			"service": "task-management-api",
+		})
+	})
+
 	// APIグループ
-	api := router.Group("/api")
+	api := router.Group("/api/v1")
 
 	// 各モジュールのルート設定
-	setupAuthRoutes(api, cfg, log)
-	setupNotificationRoutes(api, cfg, log)
-	// 他のモジュールのルート設定
+	setupAuthRoutes(api, deps)
+	setupNotificationRoutes(api, deps)
+	setupTaskRoutes(api, deps)
 
 	return router
 }
 
 // setupAuthRoutes は認証モジュールのルートをセットアップする
-func setupAuthRoutes(router *gin.RouterGroup, cfg *config.Config, log logger.Logger) {
-	// 認証コントローラの初期化（依存関係の注入はここで簡略化）
-	authCtrl := getAuthController(cfg, log)
-	tokenUseCase := getTokenUseCase(cfg, log)
+func setupAuthRoutes(router *gin.RouterGroup, deps *Dependencies) {
+	// 認証コントローラの初期化
+	authCtrl := authController.NewAuthController(deps.AuthService, deps.Logger)
 
 	// 認証ミドルウェアの初期化
-	authMw := authMiddleware.NewAuthMiddleware(tokenUseCase)
+	authMw := authMiddleware.NewAuthMiddleware(deps.TokenService)
 
 	// 認証ルートグループ
 	authRoutes := router.Group("/auth")
@@ -75,19 +99,18 @@ func setupAuthRoutes(router *gin.RouterGroup, cfg *config.Config, log logger.Log
 		admin := authRoutes.Group("/admin")
 		admin.Use(authMw.AuthRequired(), authMw.RoleRequired("admin"))
 		{
-			// 管理者機能
+			// 管理者機能のエンドポイントをここに追加
 		}
 	}
 }
 
 // setupNotificationRoutes は通知モジュールのルートをセットアップする
-func setupNotificationRoutes(router *gin.RouterGroup, cfg *config.Config, log logger.Logger) {
+func setupNotificationRoutes(router *gin.RouterGroup, deps *Dependencies) {
 	// 通知コントローラの初期化
-	notificationCtrl := getNotificationController(cfg, log)
-	tokenUseCase := getTokenUseCase(cfg, log)
+	notificationCtrl := notificationController.NewNotificationController(deps.NotificationUseCase, deps.Logger)
 
 	// 認証ミドルウェアの初期化
-	authMw := authMiddleware.NewAuthMiddleware(tokenUseCase)
+	authMw := authMiddleware.NewAuthMiddleware(deps.TokenService)
 
 	// 通知ルートグループ（認証が必要）
 	notificationRoutes := router.Group("/notifications")
@@ -97,18 +120,35 @@ func setupNotificationRoutes(router *gin.RouterGroup, cfg *config.Config, log lo
 	notificationController.RegisterNotificationRoutes(notificationRoutes, notificationCtrl)
 }
 
-// 以下はモック関数（実際の実装では依存性注入コンテナや専用のファクトリ関数を使用）
-func getAuthController(cfg *config.Config, log logger.Logger) *authController.AuthController {
-	// 実際の初期化ロジック
-	return &authController.AuthController{}
-}
+// setupTaskRoutes はタスクモジュールのルートをセットアップする
+func setupTaskRoutes(router *gin.RouterGroup, deps *Dependencies) {
+	// タスクコントローラの初期化
+	taskCtrl := taskController.NewTaskController(deps.TaskService)
 
-func getTokenUseCase(cfg *config.Config, log logger.Logger) tokenService.TokenUseCase {
-	// 実際の初期化ロジック
-	return nil
-}
+	// 認証ミドルウェアの初期化
+	authMw := authMiddleware.NewAuthMiddleware(deps.TokenService)
 
-func getNotificationController(cfg *config.Config, log logger.Logger) *notificationController.NotificationController {
-	// 実際の初期化ロジック
-	return &notificationController.NotificationController{}
+	// タスクルートグループ（認証が必要）
+	taskRoutes := router.Group("/tasks")
+	taskRoutes.Use(authMw.AuthRequired())
+	{
+		// タスクCRUD操作
+		taskRoutes.POST("", taskCtrl.CreateTask)
+		taskRoutes.GET("/:id", taskCtrl.GetTask)
+		taskRoutes.PUT("/:id", taskCtrl.UpdateTask)
+		taskRoutes.DELETE("/:id", taskCtrl.DeleteTask)
+
+		// タスク一覧・検索
+		taskRoutes.GET("", taskCtrl.ListTasks)
+		taskRoutes.GET("/search", taskCtrl.SearchTasks)
+
+		// タスクの状態管理
+		taskRoutes.PUT("/:id/assign", taskCtrl.AssignTask)
+		taskRoutes.PUT("/:id/status", taskCtrl.ChangeTaskStatus)
+
+		// 特定条件でのタスク取得
+		taskRoutes.GET("/overdue", taskCtrl.GetOverdueTasks)
+		taskRoutes.GET("/my", taskCtrl.GetMyTasks)
+		taskRoutes.GET("/user/:user_id", taskCtrl.GetUserTasks)
+	}
 }
