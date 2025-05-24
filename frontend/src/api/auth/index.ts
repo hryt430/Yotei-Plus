@@ -1,14 +1,26 @@
-// src/api/auth.ts
-// 認証関連のAPI関数
-
 import { 
   LoginRequest, 
   RegisterRequest, 
   AuthResponse, 
   UserResponse,
-  ApiResponse 
+  ApiResponse,
+  User
 } from '@/types'
-import { apiClient } from '@/api/client/route'
+import { apiClient } from '@/api/client'
+
+// ユーザー一覧取得のパラメータ
+export interface GetUsersParams {
+  search?: string
+  limit?: number
+  offset?: number
+}
+
+// ユーザー一覧レスポンス
+export interface UsersListResponse {
+  success: boolean
+  data: User[]
+  total_count?: number
+}
 
 // ユーザー登録
 export async function registerUser(data: RegisterRequest): Promise<ApiResponse<{
@@ -41,6 +53,29 @@ export async function refreshToken(): Promise<AuthResponse> {
 // 現在のユーザー情報取得
 export async function getCurrentUser(): Promise<UserResponse> {
   return apiClient.get<UserResponse>('/api/auth/me')
+}
+
+// ユーザー一覧を取得（タスク割り当て等で使用）
+export async function getUsers(params?: GetUsersParams): Promise<UsersListResponse> {
+  const queryParams: Record<string, string> = {}
+  
+  if (params) {
+    if (params.search) queryParams.search = params.search
+    if (params.limit) queryParams.limit = params.limit.toString()
+    if (params.offset) queryParams.offset = params.offset.toString()
+  }
+
+  return apiClient.get<UsersListResponse>('/api/users', queryParams)
+}
+
+// 特定のユーザー情報を取得
+export async function getUserById(id: string): Promise<ApiResponse<User>> {
+  return apiClient.get<ApiResponse<User>>(`/api/users/${id}`)
+}
+
+// ユーザー情報を更新
+export async function updateUser(id: string, data: Partial<User>): Promise<ApiResponse<User>> {
+  return apiClient.put<ApiResponse<User>>(`/api/users/${id}`, data)
 }
 
 // セッション管理

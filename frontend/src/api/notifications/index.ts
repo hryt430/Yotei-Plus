@@ -2,7 +2,7 @@
 // 通知関連のAPI関数
 
 import { ApiResponse, Notification } from '@/types'
-import { apiClient } from '@/api/client/route'
+import { apiClient } from '@/api/client'
 
 // 通知作成の入力データ
 export interface CreateNotificationInput {
