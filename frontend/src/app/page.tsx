@@ -58,8 +58,16 @@ export default function Home() {
   );
 }
 
+// 特徴カードコンポーネントの型定義を追加
+interface FeatureCardProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}
+
+
 // 特徴カードコンポーネント
-function FeatureCard({ icon, title, description }) {
+function FeatureCard({ icon, title, description }: FeatureCardProps) {
   return (
     <div className="flex flex-col items-center p-6 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-md transition-shadow">
       <div className="mb-4">{icon}</div>
