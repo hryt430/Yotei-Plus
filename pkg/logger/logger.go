@@ -30,7 +30,7 @@ func Init(cfg *Config) {
 		if cfg == nil {
 			cfg = DefaultConfig()
 		}
-		instance = newLogger(cfg)
+		instance = NewLogger(cfg)
 	})
 }
 
@@ -43,7 +43,7 @@ func Get() *Logger {
 }
 
 // newLogger は新しいロガーインスタンスを作成します
-func newLogger(cfg *Config) *Logger {
+func NewLogger(cfg *Config) *Logger {
 	// デフォルトレベルはInfo
 	level := zap.InfoLevel
 
