@@ -1,21 +1,23 @@
-import './globals.css';
-import { Inter } from 'next/font/google';
-import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider } from '@/providers/auth-provider';
-import { ThemeProvider } from '@/providers/theme-provider';
+import type { Metadata } from 'next'
+import './globals.css'
+import { Inter } from 'next/font/google'
+import { Toaster } from '@/components/ui/feedback/toaster'
+import { AuthProvider } from '@/providers/auth-provider'
+import { ThemeProvider } from '@/providers/theme-provider'
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'] })
 
-export const metadata = {
-  title: 'Notion風タスク管理アプリ',
-  description: '効率的なタスク管理を実現するアプリケーション',
-};
+export const metadata: Metadata = {
+  title: 'TaskFlow - Modern Task Management',
+  description: 'Organize your work, amplify your productivity with TaskFlow',
+  generator: 'TaskFlow v1.0',
+}
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode;
-}) {
+}: Readonly<{
+  children: React.ReactNode
+}>) {
   return (
     <html lang="ja" suppressHydrationWarning>
       <body className={inter.className}>
@@ -29,5 +31,5 @@ export default function RootLayout({
         </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }
