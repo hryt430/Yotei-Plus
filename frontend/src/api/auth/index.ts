@@ -32,27 +32,27 @@ export async function registerUser(data: RegisterRequest): Promise<ApiResponse<{
     user_id: string
     username: string
     email: string
-  }>>('/api/auth/register', data)
+  }>>('/auth/register', data)
 }
 
 // ログイン
 export async function loginUser(data: LoginRequest): Promise<AuthResponse> {
-  return apiClient.post<AuthResponse>('/api/auth/login', data)
+  return apiClient.post<AuthResponse>('/auth/login', data)
 }
 
 // ログアウト
 export async function logoutUser(): Promise<ApiResponse<null>> {
-  return apiClient.post<ApiResponse<null>>('/api/auth/logout')
+  return apiClient.post<ApiResponse<null>>('/auth/logout')
 }
 
 // トークンリフレッシュ
 export async function refreshToken(): Promise<AuthResponse> {
-  return apiClient.post<AuthResponse>('/api/auth/refresh')
+  return apiClient.post<AuthResponse>('/auth/refresh-token')
 }
 
 // 現在のユーザー情報取得
 export async function getCurrentUser(): Promise<UserResponse> {
-  return apiClient.get<UserResponse>('/api/auth/me')
+  return apiClient.get<UserResponse>('/auth/me')
 }
 
 // ユーザー一覧を取得（タスク割り当て等で使用）
@@ -65,17 +65,17 @@ export async function getUsers(params?: GetUsersParams): Promise<UsersListRespon
     if (params.offset) queryParams.offset = params.offset.toString()
   }
 
-  return apiClient.get<UsersListResponse>('/api/users', queryParams)
+  return apiClient.get<UsersListResponse>('/users', queryParams)
 }
 
 // 特定のユーザー情報を取得
 export async function getUserById(id: string): Promise<ApiResponse<User>> {
-  return apiClient.get<ApiResponse<User>>(`/api/users/${id}`)
+  return apiClient.get<ApiResponse<User>>(`/users/${id}`)
 }
 
 // ユーザー情報を更新
 export async function updateUser(id: string, data: Partial<User>): Promise<ApiResponse<User>> {
-  return apiClient.put<ApiResponse<User>>(`/api/users/${id}`, data)
+  return apiClient.put<ApiResponse<User>>(`/users/${id}`, data)
 }
 
 // セッション管理
