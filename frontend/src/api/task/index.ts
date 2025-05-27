@@ -55,17 +55,17 @@ export async function getTasks(params?: GetTasksParams): Promise<TaskListRespons
     if (params.search) queryParams.search = params.search
   }
 
-  return apiClient.get<TaskListResponse>('/api/tasks', queryParams)
+  return apiClient.get<TaskListResponse>('/tasks', queryParams)
 }
 
 // 新しいタスクを作成
 export async function createTask(data: TaskRequest): Promise<TaskResponse> {
-  return apiClient.post<TaskResponse>('/api/tasks', data)
+  return apiClient.post<TaskResponse>('/tasks', data)
 }
 
 // 特定のタスクを取得
 export async function getTask(id: string): Promise<TaskResponse> {
-  return apiClient.get<TaskResponse>(`/api/tasks/${id}`)
+  return apiClient.get<TaskResponse>(`tasks/${id}`)
 }
 
 // getTaskById エイリアス（既存コードとの互換性のため）
@@ -73,12 +73,12 @@ export const getTaskById = getTask
 
 // タスクを更新
 export async function updateTask(id: string, data: TaskRequest): Promise<TaskResponse> {
-  return apiClient.put<TaskResponse>(`/api/tasks/${id}`, data)
+  return apiClient.put<TaskResponse>(`/tasks/${id}`, data)
 }
 
 // タスクを削除
 export async function deleteTask(id: string): Promise<ApiResponse<{ success: true }>> {
-  return apiClient.delete<ApiResponse<{ success: true }>>(`/api/tasks/${id}`)
+  return apiClient.delete<ApiResponse<{ success: true }>>(`/tasks/${id}`)
 }
 
 // タスクのステータスを変更
@@ -86,12 +86,12 @@ export async function changeTaskStatus(
   id: string, 
   status: 'TODO' | 'IN_PROGRESS' | 'DONE'
 ): Promise<TaskResponse> {
-  return apiClient.patch<TaskResponse>(`/api/tasks/${id}/status`, { status })
+  return apiClient.patch<TaskResponse>(`/tasks/${id}/status`, { status })
 }
 
 // タスクをユーザーに割り当てる
 export async function assignTask(taskId: string, assigneeId: string): Promise<TaskResponse> {
-  return apiClient.post<TaskResponse>(`/api/tasks/${taskId}/assign`, { 
+  return apiClient.post<TaskResponse>(`/tasks/${taskId}/assign`, { 
     assignee_id: assigneeId 
   })
 }
@@ -104,7 +104,7 @@ export async function getOverdueTasks(): Promise<ApiResponse<{
   return apiClient.get<ApiResponse<{
     tasks: Task[]
     count: number
-  }>>('/api/tasks/overdue')
+  }>>('/tasks/overdue')
 }
 
 // 現在のユーザーのタスクを取得
@@ -115,7 +115,7 @@ export async function getMyTasks(): Promise<ApiResponse<{
   return apiClient.get<ApiResponse<{
     tasks: Task[]
     count: number
-  }>>('/api/tasks/my')
+  }>>('/tasks/my')
 }
 
 // 特定のユーザーのタスクを取得
@@ -126,7 +126,7 @@ export async function getUserTasks(userId: string): Promise<ApiResponse<{
   return apiClient.get<ApiResponse<{
     tasks: Task[]
     count: number
-  }>>(`/api/tasks/user/${userId}`)
+  }>>(`/tasks/user/${userId}`)
 }
 
 // タスクを検索
@@ -145,12 +145,12 @@ export async function searchTasks(params: SearchTasksParams): Promise<ApiRespons
   return apiClient.get<ApiResponse<{
     tasks: Task[]
     count: number
-  }>>('/api/tasks/search', queryParams)
+  }>>('/tasks/search', queryParams)
 }
 
 // タスク統計を取得
 export async function getTaskStats(): Promise<ApiResponse<TaskStatsResponse>> {
-  return apiClient.get<ApiResponse<TaskStatsResponse>>('/api/tasks/stats')
+  return apiClient.get<ApiResponse<TaskStatsResponse>>('/tasks/stats')
 }
 
 // ステータス別タスク数を更新（フロントエンド用ヘルパー）
