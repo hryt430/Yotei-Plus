@@ -20,12 +20,12 @@ export interface GetNotificationsParams {
 
 // 新しい通知を作成
 export async function createNotification(data: CreateNotificationInput): Promise<ApiResponse<Notification>> {
-  return apiClient.post<ApiResponse<Notification>>('/api/notifications', data)
+  return apiClient.post<ApiResponse<Notification>>('/notifications', data)
 }
 
 // 特定の通知を取得
 export async function getNotification(id: string): Promise<ApiResponse<Notification>> {
-  return apiClient.get<ApiResponse<Notification>>(`/api/notifications/${id}`)
+  return apiClient.get<ApiResponse<Notification>>(`/notifications/${id}`)
 }
 
 // ユーザーの通知一覧を取得
@@ -39,25 +39,25 @@ export async function getUserNotifications(
     ...(params?.unreadOnly && { unreadOnly: 'true' })
   }
   
-  return apiClient.get<ApiResponse<Notification[]>>(`/api/notifications/user/${userId}`, queryParams)
+  return apiClient.get<ApiResponse<Notification[]>>(`/notifications/user/${userId}`, queryParams)
 }
 
 // 通知を送信
 export async function sendNotification(id: string): Promise<ApiResponse<{ message: string }>> {
-  return apiClient.post<ApiResponse<{ message: string }>>(`/api/notifications/${id}/send`)
+  return apiClient.post<ApiResponse<{ message: string }>>(`/notifications/${id}/send`)
 }
 
 // 通知を既読にする
 export async function markNotificationAsRead(id: string): Promise<ApiResponse<{ message: string }>> {
-  return apiClient.put<ApiResponse<{ message: string }>>(`/api/notifications/${id}/read`)
+  return apiClient.put<ApiResponse<{ message: string }>>(`/notifications/${id}/read`)
 }
 
 // 複数の通知を既読にする
 export async function markNotificationsAsRead(notificationIds: string[]): Promise<ApiResponse<{ message: string }>> {
-  return apiClient.patch<ApiResponse<{ message: string }>>('/api/notifications/mark-read', { notificationIds })
+  return apiClient.patch<ApiResponse<{ message: string }>>('/notifications/mark-read', { notificationIds })
 }
 
 // ユーザーの未読通知数を取得
 export async function getUnreadNotificationCount(userId: string): Promise<ApiResponse<{ count: number }>> {
-  return apiClient.get<ApiResponse<{ count: number }>>(`/api/notifications/user/${userId}/unread/count`)
+  return apiClient.get<ApiResponse<{ count: number }>>(`/notifications/user/${userId}/unread/count`)
 }
