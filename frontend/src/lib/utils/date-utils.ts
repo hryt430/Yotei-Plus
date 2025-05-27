@@ -1,6 +1,3 @@
-// src/lib/utils/date-utils.ts
-// 日付関連のユーティリティ関数（新しい型定義に対応）
-
 import { Task } from '@/types';
 
 export function formatDate(dateString: string): string {

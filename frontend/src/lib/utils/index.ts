@@ -1,4 +1,3 @@
-// src/lib/utils/index.ts
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Task, TaskDisplayData, User } from "@/types"
