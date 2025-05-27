@@ -1,10 +1,7 @@
-// src/types/index.tsx
-// バックエンドの型定義と完全に整合させた型定義
-
 export interface User {
   id: string;
   email: string;
-  username: string; // バックエンドは username
+  username: string; 
   role: string;
   email_verified?: boolean;
   last_login?: string;
@@ -16,20 +13,21 @@ export interface Task {
   id: string;
   title: string;
   description: string;
-  status: 'TODO' | 'IN_PROGRESS' | 'DONE'; // バックエンドと同じ大文字
-  priority: 'LOW' | 'MEDIUM' | 'HIGH'; // バックエンドと同じ大文字
-  assignee_id?: string; // バックエンドは assignee_id
+  status: 'TODO' | 'IN_PROGRESS' | 'DONE'; 
+  priority: 'LOW' | 'MEDIUM' | 'HIGH'; 
+  category: string
+  assignee_id?: string;
   created_by: string;
-  due_date?: string; // ISO文字列形式
+  due_date?: string; 
   created_at: string;
   updated_at: string;
-  is_overdue?: boolean; // フロントエンド用計算フィールド
+  is_overdue?: boolean; 
 }
 
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'APP_NOTIFICATION' | 'TASK_ASSIGNED' | 'TASK_COMPLETED' | 'TASK_DUE_SOON' | 'SYSTEM_NOTICE';
+  type: 'APP_NOTIFICATION' | 'TASK_ASSIGNED' | 'TASK_COMPLETED' | 'TASK_DUE_SOON' | 'SYSTEM_NOTICE' | 'FRIEND_REQUEST' | 'FRIEND_ACCEPTED' | 'FRIEND_REJECTED';
   title: string;
   message: string;
   status: 'PENDING' | 'SENT' | 'READ' | 'FAILED';
@@ -37,6 +35,7 @@ export interface Notification {
   created_at: string;
   updated_at: string;
   sent_at?: string;
+  is_read: boolean;
 }
 
 // API レスポンス型（バックエンドの形式に合わせる）
