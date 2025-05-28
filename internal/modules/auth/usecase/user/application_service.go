@@ -120,6 +120,8 @@ func (u *UserService) UpdateLastLogin(id uuid.UUID) error {
 		return errors.New("user not found")
 	}
 
-	user.LastLogin = time.Now()
+	now := time.Now()
+	user.LastLogin = &now
+
 	return u.UserRepository.UpdateUser(user)
 }

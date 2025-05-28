@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -28,33 +27,30 @@ func (r *NotificationServiceRepository) Save(ctx context.Context, notification *
 	}
 
 	// 送信日時の処理
-	var sentAt sql.NullTime
+	var sentAt interface{}
 	if notification.SentAt != nil {
-		sentAt = sql.NullTime{
-			Time:  *notification.SentAt,
-			Valid: true,
-		}
+		sentAt = *notification.SentAt
+	} else {
+		sentAt = nil
 	}
 
-	// UPSERT操作の実行
 	query := `
-		INSERT INTO notifications (
+		INSERT INTO ` + "`Yotei-Plus`" + `.notifications (
 			id, user_id, title, message, type, status, metadata, created_at, updated_at, sent_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10
-		) ON CONFLICT (id) DO UPDATE SET
-			user_id = $2,
-			title = $3,
-			message = $4,
-			type = $5,
-			status = $6,
-			metadata = $7,
-			updated_at = $9,
-			sent_at = $10
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+		) ON DUPLICATE KEY UPDATE
+			user_id = VALUES(user_id),
+			title = VALUES(title),
+			message = VALUES(message),
+			type = VALUES(type),
+			status = VALUES(status),
+			metadata = VALUES(metadata),
+			updated_at = VALUES(updated_at),
+			sent_at = VALUES(sent_at)
 	`
 
-	_, err = r.ExecContext(
-		ctx,
+	_, err = r.Execute(
 		query,
 		notification.ID,
 		notification.UserID,
@@ -82,10 +78,21 @@ func (r *NotificationServiceRepository) FindByID(ctx context.Context, id string)
 		SELECT 
 			id, user_id, title, message, type, status, metadata, created_at, updated_at, sent_at
 		FROM 
-			notifications
+			` + "`Yotei-Plus`" + `.notifications
 		WHERE 
-			id = $1
+			id = ?
 	`
+
+	row, err := r.Query(query, id)
+	if err != nil {
+		r.Logger.Error("Failed to query notification", logger.Any("id", id), logger.Error(err))
+		return nil, fmt.Errorf("failed to query notification: %w", err)
+	}
+	defer row.Close()
+
+	if !row.Next() {
+		return nil, nil // 通知が見つからない場合
+	}
 
 	var (
 		notification domain.Notification
@@ -93,7 +100,7 @@ func (r *NotificationServiceRepository) FindByID(ctx context.Context, id string)
 		sentAt       sql.NullTime
 	)
 
-	err := r.QueryRowContext(ctx, query, id).Scan(
+	err = row.Scan(
 		&notification.ID,
 		&notification.UserID,
 		&notification.Title,
@@ -107,11 +114,8 @@ func (r *NotificationServiceRepository) FindByID(ctx context.Context, id string)
 	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil // 通知が見つからない場合
-		}
-		r.Logger.Error("Failed to find notification", logger.Any("id", id), logger.Error(err))
-		return nil, fmt.Errorf("failed to find notification: %w", err)
+		r.Logger.Error("Failed to scan notification", logger.Any("id", id), logger.Error(err))
+		return nil, fmt.Errorf("failed to scan notification: %w", err)
 	}
 
 	// メタデータのデコード
@@ -134,15 +138,15 @@ func (r *NotificationServiceRepository) FindByUserID(ctx context.Context, userID
 		SELECT 
 			id, user_id, title, message, type, status, metadata, created_at, updated_at, sent_at
 		FROM 
-			notifications
+			` + "`Yotei-Plus`" + `.notifications
 		WHERE 
-			user_id = $1
+			user_id = ?
 		ORDER BY 
 			created_at DESC
-		LIMIT $2 OFFSET $3
+		LIMIT ? OFFSET ?
 	`
 
-	rows, err := r.QueryContext(ctx, query, userID, limit, offset)
+	rows, err := r.Query(query, userID, limit, offset)
 	if err != nil {
 		r.Logger.Error("Failed to query notifications", logger.Any("userID", userID), logger.Error(err))
 		return nil, fmt.Errorf("failed to query notifications: %w", err)
@@ -189,36 +193,34 @@ func (r *NotificationServiceRepository) FindByUserID(ctx context.Context, userID
 		notifications = append(notifications, &notification)
 	}
 
-	if err := rows.Err(); err != nil {
-		r.Logger.Error("Error iterating notification rows", logger.Error(err))
-		return nil, fmt.Errorf("error iterating notification rows: %w", err)
-	}
-
 	return notifications, nil
 }
 
 // UpdateStatus は通知のステータスを更新する
 func (r *NotificationServiceRepository) UpdateStatus(ctx context.Context, id string, status domain.NotificationStatus) error {
+	now := time.Now()
+
 	query := `
-		UPDATE notifications
+		UPDATE ` + "`Yotei-Plus`" + `.notifications
 		SET 
-			status = $1,
-			updated_at = $2,
+			status = ?,
+			updated_at = ?,
 			sent_at = CASE 
-				WHEN $1 = 'sent' THEN $3
+				WHEN ? = 'SENT' THEN ?
 				ELSE sent_at
 			END
 		WHERE 
-			id = $4
+			id = ?
 	`
 
-	now := time.Now()
-	var sentAt *time.Time
+	var sentAt interface{}
 	if status == domain.StatusSent {
-		sentAt = &now
+		sentAt = now
+	} else {
+		sentAt = nil
 	}
 
-	result, err := r.ExecContext(ctx, query, status, now, sentAt, id)
+	result, err := r.Execute(query, status, now, status, sentAt, id)
 	if err != nil {
 		r.Logger.Error("Failed to update notification status", logger.Any("id", id), logger.Error(err))
 		return fmt.Errorf("failed to update notification status: %w", err)
@@ -241,15 +243,23 @@ func (r *NotificationServiceRepository) UpdateStatus(ctx context.Context, id str
 func (r *NotificationServiceRepository) CountByUserIDAndStatus(ctx context.Context, userID string, status domain.NotificationStatus) (int, error) {
 	query := `
 		SELECT COUNT(*)
-		FROM notifications
-		WHERE user_id = $1 AND status = $2
+		FROM ` + "`Yotei-Plus`" + `.notifications
+		WHERE user_id = ? AND status = ?
 	`
 
-	var count int
-	err := r.QueryRowContext(ctx, query, userID, status).Scan(&count)
+	row, err := r.Query(query, userID, status)
 	if err != nil {
-		r.Logger.Error("Failed to count notifications", logger.Any("userID", userID), logger.Any("status", status), logger.Error(err))
-		return 0, fmt.Errorf("failed to count notifications: %w", err)
+		r.Logger.Error("Failed to query notification count", logger.Any("userID", userID), logger.Any("status", status), logger.Error(err))
+		return 0, fmt.Errorf("failed to query notification count: %w", err)
+	}
+	defer row.Close()
+
+	var count int
+	if row.Next() {
+		if err := row.Scan(&count); err != nil {
+			r.Logger.Error("Failed to scan count", logger.Error(err))
+			return 0, fmt.Errorf("failed to scan count: %w", err)
+		}
 	}
 
 	return count, nil
@@ -261,15 +271,15 @@ func (r *NotificationServiceRepository) FindPendingNotifications(ctx context.Con
 		SELECT 
 			id, user_id, title, message, type, status, metadata, created_at, updated_at, sent_at
 		FROM 
-			notifications
+			` + "`Yotei-Plus`" + `.notifications
 		WHERE 
-			status = $1
+			status = ?
 		ORDER BY 
 			created_at ASC
-		LIMIT $2
+		LIMIT ?
 	`
 
-	rows, err := r.QueryContext(ctx, query, domain.StatusPending, limit)
+	rows, err := r.Query(query, domain.StatusPending, limit)
 	if err != nil {
 		r.Logger.Error("Failed to query pending notifications", logger.Error(err))
 		return nil, fmt.Errorf("failed to query pending notifications: %w", err)
@@ -316,10 +326,40 @@ func (r *NotificationServiceRepository) FindPendingNotifications(ctx context.Con
 		notifications = append(notifications, &notification)
 	}
 
-	if err := rows.Err(); err != nil {
-		r.Logger.Error("Error iterating notification rows", logger.Error(err))
-		return nil, fmt.Errorf("error iterating notification rows: %w", err)
+	return notifications, nil
+}
+
+// 通知を削除するメソッド
+func (r *NotificationServiceRepository) Delete(ctx context.Context, id string) error {
+	query := `DELETE FROM ` + "`Yotei-Plus`" + `.notifications WHERE id = ?`
+
+	result, err := r.Execute(query, id)
+	if err != nil {
+		r.Logger.Error("Failed to delete notification", logger.Any("id", id), logger.Error(err))
+		return fmt.Errorf("failed to delete notification: %w", err)
 	}
 
-	return notifications, nil
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		r.Logger.Error("Failed to get rows affected", logger.Error(err))
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("notification not found: %s", id)
+	}
+
+	return nil
+}
+
+func (r *NotificationServiceRepository) MarkAsRead(ctx context.Context, id string) error {
+	return r.UpdateStatus(ctx, id, domain.StatusRead)
+}
+
+func (r *NotificationServiceRepository) MarkAsSent(ctx context.Context, id string) error {
+	return r.UpdateStatus(ctx, id, domain.StatusSent)
+}
+
+func (r *NotificationServiceRepository) MarkAsFailed(ctx context.Context, id string) error {
+	return r.UpdateStatus(ctx, id, domain.StatusFailed)
 }

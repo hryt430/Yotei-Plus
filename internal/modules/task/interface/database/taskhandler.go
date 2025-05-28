@@ -37,7 +37,7 @@ var allowedSortFields = map[string]string{
 // CreateTask はタスクを作成する
 func (r *TaskRepository) CreateTask(ctx context.Context, task *domain.Task) error {
 	query := `
-		INSERT INTO tasks (
+		INSERT INTO ` + "`Yotei-Plus`" + `.tasks (
 			id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at
 		) VALUES (
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?
@@ -66,7 +66,7 @@ func (r *TaskRepository) CreateTask(ctx context.Context, task *domain.Task) erro
 // UpdateTask はタスクを更新する
 func (r *TaskRepository) UpdateTask(ctx context.Context, task *domain.Task) error {
 	query := `
-		UPDATE tasks SET
+		UPDATE ` + "`Yotei-Plus`" + `.tasks SET
 			title = ?,
 			description = ?,
 			status = ?,
@@ -108,7 +108,7 @@ func (r *TaskRepository) UpdateTask(ctx context.Context, task *domain.Task) erro
 func (r *TaskRepository) GetTaskByID(ctx context.Context, id string) (*domain.Task, error) {
 	query := `
 		SELECT id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at 
-		FROM tasks 
+		FROM ` + "`Yotei-Plus`" + `.tasks 
 		WHERE id = ?
 	`
 
@@ -132,7 +132,7 @@ func (r *TaskRepository) GetTaskByID(ctx context.Context, id string) (*domain.Ta
 
 // DeleteTask はタスクを削除する
 func (r *TaskRepository) DeleteTask(ctx context.Context, id string) error {
-	query := `DELETE FROM tasks WHERE id = ?`
+	query := `DELETE FROM ` + "`Yotei-Plus`" + `.tasks WHERE id = ?`
 
 	result, err := r.Execute(query, id)
 	if err != nil {
@@ -213,7 +213,7 @@ func (r *TaskRepository) ListTasks(
 	// メインクエリ
 	query := fmt.Sprintf(`
 		SELECT id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at
-		FROM tasks
+		FROM `+"`Yotei-Plus`"+`.tasks
 		%s
 		ORDER BY %s %s
 		LIMIT ? OFFSET ?
@@ -244,7 +244,7 @@ func (r *TaskRepository) ListTasks(
 func (r *TaskRepository) SearchTasks(ctx context.Context, query string, limit int) ([]*domain.Task, error) {
 	sqlQuery := `
 		SELECT id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at
-		FROM tasks
+		FROM ` + "`Yotei-Plus`" + `.tasks
 		WHERE title LIKE ? OR description LIKE ?
 		ORDER BY created_at DESC
 		LIMIT ?
@@ -273,7 +273,7 @@ func (r *TaskRepository) SearchTasks(ctx context.Context, query string, limit in
 func (r *TaskRepository) GetTasksByAssignee(ctx context.Context, userID string) ([]*domain.Task, error) {
 	query := `
 		SELECT id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at
-		FROM tasks
+		FROM ` + "`Yotei-Plus`" + `.tasks
 		WHERE assignee_id = ?
 		ORDER BY created_at DESC
 	`
@@ -300,7 +300,7 @@ func (r *TaskRepository) GetTasksByAssignee(ctx context.Context, userID string) 
 func (r *TaskRepository) GetOverdueTasks(ctx context.Context) ([]*domain.Task, error) {
 	query := `
 		SELECT id, title, description, status, priority, assignee_id, created_by, due_date, created_at, updated_at
-		FROM tasks
+		FROM ` + "`Yotei-Plus`" + `.tasks
 		WHERE due_date < ? AND status != ?
 		ORDER BY due_date ASC
 	`
@@ -363,7 +363,7 @@ func (r *TaskRepository) scanTaskFromRow(row Row) (*domain.Task, error) {
 
 // getTaskCount はタスクの総数を取得する
 func (r *TaskRepository) getTaskCount(whereClause string, args []interface{}) (int, error) {
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM tasks %s", whereClause)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM "+"`Yotei-Plus`"+".tasks %s", whereClause)
 
 	row, err := r.Query(countQuery, args...)
 	if err != nil {
