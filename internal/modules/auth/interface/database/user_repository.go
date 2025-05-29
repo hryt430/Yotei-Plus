@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hryt430/Yotei+/internal/modules/auth/domain"
@@ -42,20 +43,19 @@ func (r *IUserRepository) CreateUser(user *domain.User) error {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	_, err := r.Execute(query,
 		user.ID.String(),
-		user.Username, // ✅ name → username
+		user.Username,
 		user.Email,
 		user.Password,
-		user.Role,          // ✅ 追加
-		user.EmailVerified, // ✅ 追加
-		user.LastLogin,     // ✅ 修正: &を削除（すでにポインタ型）
-		user.CreatedAt,     // ✅ 検証済み時刻
-		user.UpdatedAt,     // ✅ 検証済み時刻
+		user.Role,
+		user.EmailVerified,
+		user.LastLogin,
+		user.CreatedAt,
+		user.UpdatedAt,
 	)
 	return err
 }
 
 func (r *IUserRepository) FindUserByEmail(email string) (*domain.User, error) {
-	// ✅ 修正: name → username、テーブル名にDB名追加、全フィールド対応
 	query := `SELECT id, username, email, password, role, email_verified, last_login, created_at, updated_at 
 		FROM ` + "`Yotei-Plus`" + `.users 
 		WHERE email = ? LIMIT 1`
@@ -67,44 +67,40 @@ func (r *IUserRepository) FindUserByEmail(email string) (*domain.User, error) {
 
 	var user domain.User
 	var idStr string
-	var lastLogin sql.NullTime // NULL許可
+	var lastLogin sql.NullTime
 
 	if !row.Next() {
-		return nil, nil // NotFound扱い
+		return nil, nil
 	}
 
-	// ✅ 修正: 全フィールドをスキャン
 	if err := row.Scan(
 		&idStr,
-		&user.Username, // ✅ name → username
+		&user.Username,
 		&user.Email,
 		&user.Password,
-		&user.Role,          // ✅ 追加
-		&user.EmailVerified, // ✅ 追加
-		&lastLogin,          // ✅ 追加
+		&user.Role,
+		&user.EmailVerified,
+		&lastLogin,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
 
-	// UUIDパース
 	parsedID, err := uuid.Parse(idStr)
 	if err != nil {
 		return nil, err
 	}
 	user.ID = parsedID
 
-	// last_loginのNULL処理
 	if lastLogin.Valid {
-		user.LastLogin = &lastLogin.Time // ✅ アドレス演算子を追加
+		user.LastLogin = &lastLogin.Time
 	}
 
 	return &user, nil
 }
 
 func (r *IUserRepository) FindUserByID(id uuid.UUID) (*domain.User, error) {
-	// ✅ 修正: name → username、テーブル名にDB名追加、全フィールド対応
 	query := `SELECT id, username, email, password, role, email_verified, last_login, created_at, updated_at 
 		FROM ` + "`Yotei-Plus`" + `.users 
 		WHERE id = ? LIMIT 1`
@@ -122,34 +118,143 @@ func (r *IUserRepository) FindUserByID(id uuid.UUID) (*domain.User, error) {
 		return nil, nil
 	}
 
-	// ✅ 修正: 全フィールドをスキャン
 	if err := row.Scan(
 		&idStr,
-		&user.Username, // ✅ name → username
+		&user.Username,
 		&user.Email,
 		&user.Password,
-		&user.Role,          // ✅ 追加
-		&user.EmailVerified, // ✅ 追加
-		&lastLogin,          // ✅ 追加
+		&user.Role,
+		&user.EmailVerified,
+		&lastLogin,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
 
-	// UUIDパース
 	parsedID, err := uuid.Parse(idStr)
 	if err != nil {
 		return nil, err
 	}
 	user.ID = parsedID
 
-	// last_loginのNULL処理
 	if lastLogin.Valid {
-		user.LastLogin = &lastLogin.Time // ✅ アドレス演算子を追加
+		user.LastLogin = &lastLogin.Time
 	}
 
 	return &user, nil
+}
+
+// ✅ 新規追加: ユーザー名による検索
+func (r *IUserRepository) FindUserByUsername(username string) (*domain.User, error) {
+	query := `SELECT id, username, email, password, role, email_verified, last_login, created_at, updated_at 
+		FROM ` + "`Yotei-Plus`" + `.users 
+		WHERE username = ? LIMIT 1`
+	row, err := r.Query(query, username)
+	if err != nil {
+		return nil, err
+	}
+	defer row.Close()
+
+	var user domain.User
+	var idStr string
+	var lastLogin sql.NullTime
+
+	if !row.Next() {
+		return nil, nil
+	}
+
+	if err := row.Scan(
+		&idStr,
+		&user.Username,
+		&user.Email,
+		&user.Password,
+		&user.Role,
+		&user.EmailVerified,
+		&lastLogin,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	); err != nil {
+		return nil, err
+	}
+
+	parsedID, err := uuid.Parse(idStr)
+	if err != nil {
+		return nil, err
+	}
+	user.ID = parsedID
+
+	if lastLogin.Valid {
+		user.LastLogin = &lastLogin.Time
+	}
+
+	return &user, nil
+}
+
+// ✅ 新規追加: ユーザー一覧取得（検索機能付き）
+func (r *IUserRepository) FindUsers(search string) ([]*domain.User, error) {
+	var query string
+	var args []interface{}
+
+	if search != "" {
+		search = strings.TrimSpace(search)
+		searchPattern := "%" + search + "%"
+		query = `SELECT id, username, email, password, role, email_verified, last_login, created_at, updated_at 
+			FROM ` + "`Yotei-Plus`" + `.users 
+			WHERE username LIKE ? OR email LIKE ? 
+			ORDER BY username ASC 
+			LIMIT 100`
+		args = []interface{}{searchPattern, searchPattern}
+	} else {
+		query = `SELECT id, username, email, password, role, email_verified, last_login, created_at, updated_at 
+			FROM ` + "`Yotei-Plus`" + `.users 
+			ORDER BY username ASC 
+			LIMIT 100`
+		args = []interface{}{}
+	}
+
+	rows, err := r.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*domain.User
+	for rows.Next() {
+		var user domain.User
+		var idStr string
+		var lastLogin sql.NullTime
+
+		if err := rows.Scan(
+			&idStr,
+			&user.Username,
+			&user.Email,
+			&user.Password,
+			&user.Role,
+			&user.EmailVerified,
+			&lastLogin,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan user: %w", err)
+		}
+
+		// UUIDパース
+		parsedID, err := uuid.Parse(idStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse user ID: %w", err)
+		}
+		user.ID = parsedID
+
+		// last_loginのNULL処理
+		if lastLogin.Valid {
+			user.LastLogin = &lastLogin.Time
+		}
+
+		users = append(users, &user)
+	}
+
+	return users, nil
 }
 
 func (r *IUserRepository) UpdateUser(user *domain.User) error {
@@ -161,18 +266,17 @@ func (r *IUserRepository) UpdateUser(user *domain.User) error {
 	// ✅ UpdatedAt を現在時刻に設定
 	user.UpdatedAt = time.Now()
 
-	// ✅ 修正: name → username、テーブル名にDB名追加、全フィールド対応
 	query := `UPDATE ` + "`Yotei-Plus`" + `.users 
 		SET username = ?, email = ?, password = ?, role = ?, email_verified = ?, last_login = ?, updated_at = ? 
 		WHERE id = ?`
 	_, err := r.Execute(query,
-		user.Username, // ✅ name → username
+		user.Username,
 		user.Email,
 		user.Password,
-		user.Role,          // ✅ 追加
-		user.EmailVerified, // ✅ 追加
-		user.LastLogin,     // ✅ 修正: &を削除（すでにポインタ型）
-		user.UpdatedAt,     // ✅ 現在時刻を使用
+		user.Role,
+		user.EmailVerified,
+		user.LastLogin,
+		user.UpdatedAt,
 		user.ID.String(),
 	)
 	return err

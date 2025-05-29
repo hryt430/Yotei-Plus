@@ -7,6 +7,8 @@ import (
 	"github.com/hryt430/Yotei+/internal/modules/auth/domain"
 	"github.com/hryt430/Yotei+/pkg/utils"
 
+	"context"
+
 	"github.com/google/uuid"
 )
 
@@ -49,6 +51,11 @@ func (u *UserService) CreateUser(user *domain.User) (*domain.User, error) {
 	return user, nil
 }
 
+// GetUsers はユーザー一覧を取得する（検索機能付き）
+func (u *UserService) GetUsers(ctx context.Context, search string) ([]*domain.User, error) {
+	return u.UserRepository.FindUsers(search)
+}
+
 // GetUserByEmail はメールアドレスでユーザーを検索する
 func (u *UserService) FindUserByEmail(email string) (*domain.User, error) {
 	user, err := u.UserRepository.FindUserByEmail(email)
@@ -68,19 +75,43 @@ func (u *UserService) FindUserByID(id uuid.UUID) (*domain.User, error) {
 }
 
 // UpdateUserProfile はユーザープロフィールを更新する
-func (u *UserService) UpdateUserProfile(id uuid.UUID, username string) error {
+func (u *UserService) UpdateUserProfile(id uuid.UUID, username, email string) (*domain.User, error) {
 	user, err := u.UserRepository.FindUserByID(id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if user == nil {
-		return errors.New("user not found")
+		return nil, errors.New("user not found")
 	}
 
-	user.Username = username
-	user.UpdatedAt = time.Now()
+	// 更新するフィールドをチェック
+	updated := false
 
-	return u.UserRepository.UpdateUser(user)
+	// メールアドレスの更新
+	if email != "" && email != user.Email {
+		// メールアドレスの重複チェック
+		existingUser, err := u.UserRepository.FindUserByEmail(email)
+		if err != nil {
+			return nil, err
+		}
+		if existingUser != nil && existingUser.ID != id {
+			return nil, errors.New("email already exists")
+		}
+		user.Email = email
+		// メールアドレス変更時は認証フラグをリセット
+		user.EmailVerified = false
+		updated = true
+	}
+
+	// 更新がある場合のみデータベースを更新
+	if updated {
+		user.UpdatedAt = time.Now()
+		if err := u.UserRepository.UpdateUser(user); err != nil {
+			return nil, err
+		}
+	}
+
+	return user, nil
 }
 
 // ChangePassword はユーザーのパスワードを変更する
