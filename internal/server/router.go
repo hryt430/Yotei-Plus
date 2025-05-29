@@ -9,6 +9,7 @@ import (
 
 	authMiddleware "github.com/hryt430/Yotei+/internal/modules/auth/infrastructure/middleware"
 	authController "github.com/hryt430/Yotei+/internal/modules/auth/interface/controller"
+	userController "github.com/hryt430/Yotei+/internal/modules/auth/interface/controller"
 	authService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/auth"
 	tokenService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/token"
 	userService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/user"
@@ -65,6 +66,7 @@ func SetupRouter(deps *Dependencies) *gin.Engine {
 
 	// 各モジュールのルート設定
 	setupAuthRoutes(api, deps)
+	setupUserRoutes(api, deps)
 	setupNotificationRoutes(api, deps)
 	setupTaskRoutes(api, deps)
 
@@ -101,6 +103,31 @@ func setupAuthRoutes(router *gin.RouterGroup, deps *Dependencies) {
 		{
 			// 管理者機能のエンドポイントをここに追加
 		}
+	}
+}
+
+// setupUserRoutes はユーザー管理のルートをセットアップする（新規追加）
+func setupUserRoutes(router *gin.RouterGroup, deps *Dependencies) {
+	// ユーザーコントローラの初期化（新規作成が必要）
+	userCtrl := userController.NewUserController(deps.UserService, deps.Logger)
+
+	// 認証ミドルウェアの初期化
+	authMw := authMiddleware.NewAuthMiddleware(deps.TokenService)
+
+	// ユーザールートグループ（認証が必要）
+	userRoutes := router.Group("/users")
+	userRoutes.Use(authMw.AuthRequired())
+	{
+		// ユーザー一覧取得（タスク割り当て用）
+		userRoutes.GET("", userCtrl.GetUsers)
+
+		// 現在のユーザー関連（互換性維持）
+		userRoutes.GET("/me", userCtrl.GetCurrentUser)
+		userRoutes.PUT("/me", userCtrl.UpdateCurrentUser)
+
+		// 特定ユーザー関連
+		userRoutes.GET("/:id", userCtrl.GetUser)
+		userRoutes.PUT("/:id", userCtrl.UpdateUser)
 	}
 }
 
