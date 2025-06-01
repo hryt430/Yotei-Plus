@@ -24,6 +24,19 @@ const (
 	PriorityHigh   Priority = "HIGH"
 )
 
+// Category はタスクのカテゴリを表す型
+type Category string
+
+// タスクカテゴリの定数
+const (
+	CategoryWork     Category = "WORK"     // 仕事
+	CategoryPersonal Category = "PERSONAL" // 個人
+	CategoryStudy    Category = "STUDY"    // 学習
+	CategoryHealth   Category = "HEALTH"   // 健康
+	CategoryShopping Category = "SHOPPING" // 買い物
+	CategoryOther    Category = "OTHER"    // その他
+)
+
 // Task はタスクのドメインモデルを表す
 type Task struct {
 	ID          string     `json:"id"`
@@ -31,6 +44,7 @@ type Task struct {
 	Description string     `json:"description"`
 	Status      TaskStatus `json:"status"`
 	Priority    Priority   `json:"priority"`
+	Category    Category   `json:"category"`
 	AssigneeID  *string    `json:"assignee_id,omitempty"`
 	CreatedBy   string     `json:"created_by"`
 	DueDate     *time.Time `json:"due_date,omitempty"`
@@ -42,6 +56,7 @@ type Task struct {
 type ListFilter struct {
 	Status      *TaskStatus `json:"status,omitempty"`
 	Priority    *Priority   `json:"priority,omitempty"`
+	Category    *Category   `json:"category,omitempty"`
 	AssigneeID  *string     `json:"assignee_id,omitempty"`
 	CreatedBy   *string     `json:"created_by,omitempty"`
 	DueDateFrom *time.Time  `json:"due_date_from,omitempty"`
@@ -60,18 +75,24 @@ type SortOptions struct {
 	Direction string `json:"direction"` // ASC または DESC
 }
 
-// NewTask は新しいタスクを作成する
-func NewTask(title, description string, priority Priority, createdBy string) *Task {
+// NewTask は新しいタスクを作成する（Category引数を追加）
+func NewTask(title, description string, priority Priority, category Category, createdBy string) *Task {
 	now := time.Now()
 	return &Task{
 		Title:       title,
 		Description: description,
 		Status:      TaskStatusTodo,
 		Priority:    priority,
+		Category:    category, // 追加
 		CreatedBy:   createdBy,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
+}
+
+// NewTaskWithDefaults はデフォルト値でタスクを作成する（下位互換性）
+func NewTaskWithDefaults(title, description string, priority Priority, createdBy string) *Task {
+	return NewTask(title, description, priority, CategoryOther, createdBy)
 }
 
 // AssignTo はタスクを特定のユーザーに割り当てる
@@ -92,7 +113,91 @@ func (t *Task) SetDueDate(date time.Time) {
 	t.UpdatedAt = time.Now()
 }
 
+// SetCategory はタスクのカテゴリを設定する
+func (t *Task) SetCategory(category Category) {
+	t.Category = category
+	t.UpdatedAt = time.Now()
+}
+
 // IsOverdue はタスクが期限切れかどうかを判定する
 func (t *Task) IsOverdue() bool {
 	return t.DueDate != nil && t.Status != TaskStatusDone && time.Now().After(*t.DueDate)
+}
+
+// GetCategoryDisplayName はカテゴリの表示名を取得する
+func (c Category) GetDisplayName() string {
+	switch c {
+	case CategoryWork:
+		return "仕事"
+	case CategoryPersonal:
+		return "個人"
+	case CategoryStudy:
+		return "学習"
+	case CategoryHealth:
+		return "健康"
+	case CategoryShopping:
+		return "買い物"
+	case CategoryOther:
+		return "その他"
+	default:
+		return string(c)
+	}
+}
+
+// GetPriorityDisplayName は優先度の表示名を取得する
+func (p Priority) GetDisplayName() string {
+	switch p {
+	case PriorityHigh:
+		return "高"
+	case PriorityMedium:
+		return "中"
+	case PriorityLow:
+		return "低"
+	default:
+		return string(p)
+	}
+}
+
+// GetStatusDisplayName はステータスの表示名を取得する
+func (s TaskStatus) GetDisplayName() string {
+	switch s {
+	case TaskStatusTodo:
+		return "未着手"
+	case TaskStatusInProgress:
+		return "進行中"
+	case TaskStatusDone:
+		return "完了"
+	default:
+		return string(s)
+	}
+}
+
+// GetAllCategories は利用可能な全カテゴリを取得する
+func GetAllCategories() []Category {
+	return []Category{
+		CategoryWork,
+		CategoryPersonal,
+		CategoryStudy,
+		CategoryHealth,
+		CategoryShopping,
+		CategoryOther,
+	}
+}
+
+// GetAllPriorities は利用可能な全優先度を取得する
+func GetAllPriorities() []Priority {
+	return []Priority{
+		PriorityHigh,
+		PriorityMedium,
+		PriorityLow,
+	}
+}
+
+// GetAllStatuses は利用可能な全ステータスを取得する
+func GetAllStatuses() []TaskStatus {
+	return []TaskStatus{
+		TaskStatusTodo,
+		TaskStatusInProgress,
+		TaskStatusDone,
+	}
 }

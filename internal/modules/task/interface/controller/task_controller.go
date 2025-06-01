@@ -121,7 +121,7 @@ func (c *TaskController) CreateTask(ctx *gin.Context) {
 		priority = domain.Priority(req.Priority)
 	}
 
-	task, err := c.taskService.CreateTask(
+	task, err := c.taskService.CreateTaskWithDefaults(
 		ctx,
 		req.Title,
 		req.Description,

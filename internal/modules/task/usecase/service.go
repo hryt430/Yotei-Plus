@@ -8,18 +8,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	commonDomain "github.com/hryt430/Yotei+/internal/common/domain"
 	"github.com/hryt430/Yotei+/internal/modules/task/domain"
 	"github.com/hryt430/Yotei+/pkg/logger"
 )
 
-// === インターフェース定義 ===
-
-// UserValidator はユーザー存在確認とN+1問題解決のインターフェース
-type UserValidator interface {
-	UserExists(userID string) (bool, error)
-	GetUserBasicInfo(userID string) (*UserBasicInfo, error)
-	GetUserBasicInfoBatch(userIDs []string) (map[string]*UserBasicInfo, error) // N+1問題解決用
-}
+type UserValidator = commonDomain.UserValidator
 
 // EventPublisher はイベント発行のインターフェース
 type EventPublisher interface {
@@ -32,26 +26,22 @@ type EventPublisher interface {
 
 // === 構造体定義 ===
 
-// UserBasicInfo はユーザーの基本情報
-type UserBasicInfo struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-}
+// / UserInfo はユーザーの基本情報（共通定義を使用）
+type UserInfo = commonDomain.UserInfo
 
 // TaskWithUserInfo はタスクとユーザー情報を含む構造体（N+1問題解決用）
 type TaskWithUserInfo struct {
-	Task         *domain.Task   `json:"task"`
-	CreatorInfo  *UserBasicInfo `json:"creator_info,omitempty"`
-	AssigneeInfo *UserBasicInfo `json:"assignee_info,omitempty"`
+	Task         *domain.Task `json:"task"`
+	CreatorInfo  *UserInfo    `json:"creator_info,omitempty"`
+	AssigneeInfo *UserInfo    `json:"assignee_info,omitempty"`
 }
 
 // TaskService は改良されたタスクサービス
 type TaskService struct {
 	TaskRepository TaskRepository
-	UserValidator  UserValidator  // ユーザーバリデーション用
-	EventPublisher EventPublisher // イベント発行用
-	Logger         logger.Logger  // ロギング用
+	UserValidator  UserValidator
+	EventPublisher EventPublisher
+	Logger         logger.Logger
 
 	// 非同期イベント設定
 	AsyncEventTimeout time.Duration
@@ -86,12 +76,13 @@ var (
 
 // === メインサービスメソッド ===
 
-// CreateTask はタスクを作成する（ユーザーバリデーション + イベント発行）
+// CreateTask はタスクを作成する（統一インターフェース使用）
 func (s *TaskService) CreateTask(
 	ctx context.Context,
 	title,
 	description string,
 	priority domain.Priority,
+	category domain.Category,
 	createdBy string,
 ) (*domain.Task, error) {
 	// 入力バリデーション
@@ -99,8 +90,8 @@ func (s *TaskService) CreateTask(
 		return nil, err
 	}
 
-	// 作成者の存在確認
-	exists, err := s.UserValidator.UserExists(createdBy)
+	// 作成者の存在確認（統一インターフェース使用）
+	exists, err := s.UserValidator.UserExists(ctx, createdBy)
 	if err != nil {
 		s.Logger.Error("Failed to validate user existence",
 			logger.Any("userID", createdBy), logger.Error(err))
@@ -111,7 +102,7 @@ func (s *TaskService) CreateTask(
 	}
 
 	// タスク作成
-	task := domain.NewTask(title, description, priority, createdBy)
+	task := domain.NewTask(title, description, priority, category, createdBy)
 	task.ID = uuid.New().String()
 
 	err = s.TaskRepository.CreateTask(ctx, task)
@@ -132,6 +123,17 @@ func (s *TaskService) CreateTask(
 	return task, nil
 }
 
+// CreateTaskWithDefaults はデフォルトカテゴリでタスクを作成する（下位互換性）
+func (s *TaskService) CreateTaskWithDefaults(
+	ctx context.Context,
+	title,
+	description string,
+	priority domain.Priority,
+	createdBy string,
+) (*domain.Task, error) {
+	return s.CreateTask(ctx, title, description, priority, domain.CategoryOther, createdBy)
+}
+
 // GetTask はIDに基づいてタスクを取得する
 func (s *TaskService) GetTask(ctx context.Context, id string) (*domain.Task, error) {
 	if id == "" {
@@ -140,7 +142,7 @@ func (s *TaskService) GetTask(ctx context.Context, id string) (*domain.Task, err
 	return s.TaskRepository.GetTaskByID(ctx, id)
 }
 
-// GetTaskWithUserInfo はタスクとユーザー情報を一緒に取得（N+1問題解決）
+// GetTaskWithUserInfo はタスクとユーザー情報を一緒に取得（統一インターフェース使用）
 func (s *TaskService) GetTaskWithUserInfo(ctx context.Context, id string) (*TaskWithUserInfo, error) {
 	if id == "" {
 		return nil, ErrInvalidParameter
@@ -161,7 +163,7 @@ func (s *TaskService) GetTaskWithUserInfo(ctx context.Context, id string) (*Task
 		userIDs = append(userIDs, *task.AssigneeID)
 	}
 
-	userInfoMap, err := s.UserValidator.GetUserBasicInfoBatch(userIDs)
+	userInfoMap, err := s.UserValidator.GetUsersInfoBatch(ctx, userIDs)
 	if err != nil {
 		s.Logger.Error("Failed to get user info batch", logger.Error(err))
 		// エラーでもタスク情報は返す（ユーザー情報は空）
@@ -235,13 +237,14 @@ func (s *TaskService) ListTasksWithUserInfo(
 		userIDs = append(userIDs, userID)
 	}
 
-	// ユーザー情報を一括取得（N+1問題解決）
-	userInfoMap := make(map[string]*UserBasicInfo)
+	// ユーザー情報を一括取得（修正：UserInfoで統一）
+	userInfoMap := make(map[string]*UserInfo)
 	if len(userIDs) > 0 {
-		if batchInfo, err := s.UserValidator.GetUserBasicInfoBatch(userIDs); err == nil {
+		if batchInfo, err := s.UserValidator.GetUsersInfoBatch(ctx, userIDs); err == nil {
 			userInfoMap = batchInfo
 		} else {
 			s.Logger.Error("Failed to get user info batch", logger.Error(err))
+			// エラーログは出力するが、処理は継続（グレースフルな劣化）
 		}
 	}
 
@@ -369,14 +372,14 @@ func (s *TaskService) DeleteTask(ctx context.Context, id string) error {
 	return nil
 }
 
-// AssignTask はタスクを指定されたユーザーに割り当てる（ユーザーバリデーション + イベント発行）
+// / AssignTask はタスクを指定されたユーザーに割り当てる（統一インターフェース使用）
 func (s *TaskService) AssignTask(ctx context.Context, taskID string, assigneeID string) (*domain.Task, error) {
 	if taskID == "" || assigneeID == "" {
 		return nil, ErrInvalidParameter
 	}
 
-	// アサイン先ユーザーの存在確認
-	exists, err := s.UserValidator.UserExists(assigneeID)
+	// アサイン先ユーザーの存在確認（統一インターフェース使用）
+	exists, err := s.UserValidator.UserExists(ctx, assigneeID)
 	if err != nil {
 		s.Logger.Error("Failed to validate assignee existence",
 			logger.Any("assigneeID", assigneeID), logger.Error(err))
@@ -480,44 +483,23 @@ func (s *TaskService) SearchTasks(ctx context.Context, query string, limit int) 
 
 // publishEventAsync はイベントを非同期で発行する
 func (s *TaskService) publishEventAsync(ctx context.Context, eventType string, publishFunc func() error) {
-	if s.EventPublisher == nil {
-		return
-	}
-
 	go func() {
 		// タイムアウト付きコンテキスト
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), s.AsyncEventTimeout)
+		_, cancel := context.WithTimeout(ctx, s.AsyncEventTimeout)
 		defer cancel()
 
-		// リトライロジック
+		var lastErr error
 		for attempt := 1; attempt <= s.MaxRetries; attempt++ {
-			select {
-			case <-timeoutCtx.Done():
-				s.Logger.Error("Event publish timeout",
-					logger.Any("eventType", eventType),
-					logger.Any("attempt", attempt))
-				return
-			default:
-			}
-
 			if err := publishFunc(); err != nil {
-				s.Logger.Error("Failed to publish event",
+				lastErr = err
+				s.Logger.Warn("Event publish failed, retrying...",
 					logger.Any("eventType", eventType),
 					logger.Any("attempt", attempt),
-					logger.Any("maxRetries", s.MaxRetries),
 					logger.Error(err))
 
-				if attempt < s.MaxRetries {
-					// 指数バックオフ
-					backoff := time.Duration(attempt*attempt) * time.Second
-					time.Sleep(backoff)
-					continue
-				}
-
-				// 最大リトライ回数に達した場合
-				s.Logger.Error("Max retries exceeded for event publish",
-					logger.Any("eventType", eventType))
-				return
+				// 指数バックオフで再試行
+				time.Sleep(time.Duration(attempt) * time.Second)
+				continue
 			}
 
 			// 成功
@@ -526,6 +508,12 @@ func (s *TaskService) publishEventAsync(ctx context.Context, eventType string, p
 				logger.Any("attempt", attempt))
 			return
 		}
+
+		// 全ての試行が失敗
+		s.Logger.Error("Event publish failed after all retries",
+			logger.Any("eventType", eventType),
+			logger.Any("maxRetries", s.MaxRetries),
+			logger.Error(lastErr))
 	}()
 }
 
@@ -533,16 +521,16 @@ func (s *TaskService) publishEventAsync(ctx context.Context, eventType string, p
 
 func (s *TaskService) validateCreateTaskInput(title, description, createdBy string) error {
 	if strings.TrimSpace(title) == "" {
-		return ErrInvalidParameter
+		return fmt.Errorf("%w: title is required", ErrInvalidParameter)
 	}
 	if len(title) > 255 {
-		return errors.New("title too long (max 255 characters)")
+		return fmt.Errorf("%w: title too long (max 255 characters)", ErrInvalidParameter)
 	}
-	if len(description) > 5000 {
-		return errors.New("description too long (max 5000 characters)")
+	if len(description) > 2000 {
+		return fmt.Errorf("%w: description too long (max 2000 characters)", ErrInvalidParameter)
 	}
-	if createdBy == "" {
-		return ErrInvalidParameter
+	if strings.TrimSpace(createdBy) == "" {
+		return fmt.Errorf("%w: createdBy is required", ErrInvalidParameter)
 	}
 	return nil
 }
