@@ -1,6 +1,9 @@
 package server
 
 import (
+	"context"
+	"sync"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/hryt430/Yotei+/config"
@@ -14,9 +17,12 @@ import (
 	tokenService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/token"
 	userService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/user"
 
+	notificationMessaging "github.com/hryt430/Yotei+/internal/modules/notification/infrastructure/messaging"
 	notificationController "github.com/hryt430/Yotei+/internal/modules/notification/interface/controller"
+	"github.com/hryt430/Yotei+/internal/modules/notification/interface/websocket"
 	notificationUseCase "github.com/hryt430/Yotei+/internal/modules/notification/usecase/input"
 
+	taskMessaging "github.com/hryt430/Yotei+/internal/modules/task/infrastructure/messaging"
 	taskController "github.com/hryt430/Yotei+/internal/modules/task/interface/controller"
 	taskUseCase "github.com/hryt430/Yotei+/internal/modules/task/usecase"
 )
@@ -28,8 +34,16 @@ type Dependencies struct {
 	UserService         userService.UserService
 	NotificationUseCase notificationUseCase.NotificationUseCase
 	TaskService         taskUseCase.TaskService
+	StatsService        *taskUseCase.TaskStatsService
+	WSHub               *websocket.Hub
+	TaskScheduler       *taskMessaging.TaskDueNotificationScheduler
+	MessageBroker       notificationMessaging.MessageBroker
 	Logger              logger.Logger
 	Config              *config.Config
+
+	// バックグラウンドサービス管理用
+	cancelFunc   context.CancelFunc
+	backgroundWg sync.WaitGroup
 }
 
 // SetupRouter はAPIルーターをセットアップする
@@ -47,6 +61,9 @@ func SetupRouter(deps *Dependencies) *gin.Engine {
 	router.Use(middleware.LoggerMiddleware(deps.Logger))
 	router.Use(middleware.CORSMiddleware(deps.Config))
 
+	// セキュリティヘッダー
+	router.Use(middleware.SecurityHeadersMiddleware())
+
 	// Next.jsとのCSRF連携
 	if deps.Config.EnableCSRF() {
 		router.Use(middleware.SetCSRFToken())
@@ -58,11 +75,15 @@ func SetupRouter(deps *Dependencies) *gin.Engine {
 		c.JSON(200, gin.H{
 			"status":  "ok",
 			"service": "task-management-api",
+			"version": "v1.0.0",
 		})
 	})
 
 	// APIグループ
 	api := router.Group("/api/v1")
+
+	// WebSocketエンドポイント（認証必要）
+	setupWebSocketRoutes(router, deps)
 
 	// 各モジュールのルート設定
 	setupAuthRoutes(api, deps)
@@ -71,6 +92,21 @@ func SetupRouter(deps *Dependencies) *gin.Engine {
 	setupTaskRoutes(api, deps)
 
 	return router
+}
+
+// setupWebSocketRoutes はWebSocketエンドポイントをセットアップする（context対応版）
+func setupWebSocketRoutes(router *gin.Engine, deps *Dependencies) {
+	if deps.WSHub == nil {
+		deps.Logger.Warn("WebSocket hub not available, skipping WebSocket routes")
+		return
+	}
+
+	// WebSocketエンドポイント
+	wsGroup := router.Group("/ws")
+	{
+		// リアルタイム通知用WebSocket
+		wsGroup.GET("/notifications", websocket.ServeWs(deps.WSHub, deps.Logger))
+	}
 }
 
 // setupAuthRoutes は認証モジュールのルートをセットアップする
@@ -101,14 +137,14 @@ func setupAuthRoutes(router *gin.RouterGroup, deps *Dependencies) {
 		admin := authRoutes.Group("/admin")
 		admin.Use(authMw.AuthRequired(), authMw.RoleRequired("admin"))
 		{
-			// 管理者機能のエンドポイントをここに追加
+			// 将来の管理者機能用
 		}
 	}
 }
 
-// setupUserRoutes はユーザー管理のルートをセットアップする（新規追加）
+// setupUserRoutes はユーザー管理のルートをセットアップする
 func setupUserRoutes(router *gin.RouterGroup, deps *Dependencies) {
-	// ユーザーコントローラの初期化（新規作成が必要）
+	// ユーザーコントローラの初期化
 	userCtrl := userController.NewUserController(deps.UserService, deps.Logger)
 
 	// 認証ミドルウェアの初期化
@@ -152,6 +188,9 @@ func setupTaskRoutes(router *gin.RouterGroup, deps *Dependencies) {
 	// タスクコントローラの初期化
 	taskCtrl := taskController.NewTaskController(deps.TaskService)
 
+	// 統計コントローラの初期化
+	statsCtrl := taskController.NewTaskStatsController(deps.StatsService)
+
 	// 認証ミドルウェアの初期化
 	authMw := authMiddleware.NewAuthMiddleware(deps.TokenService)
 
@@ -177,5 +216,83 @@ func setupTaskRoutes(router *gin.RouterGroup, deps *Dependencies) {
 		taskRoutes.GET("/overdue", taskCtrl.GetOverdueTasks)
 		taskRoutes.GET("/my", taskCtrl.GetMyTasks)
 		taskRoutes.GET("/user/:user_id", taskCtrl.GetUserTasks)
+
+		// === 統計情報API ===
+		statsGroup := taskRoutes.Group("/stats")
+		{
+			// ダッシュボード統計
+			statsGroup.GET("/dashboard", statsCtrl.GetDashboardStats)
+
+			// 日次統計
+			statsGroup.GET("/today", statsCtrl.GetTodayStats)
+			statsGroup.GET("/daily/:date", statsCtrl.GetDailyStats)
+
+			// 週次・月次統計
+			statsGroup.GET("/weekly", statsCtrl.GetWeeklyStats)
+			statsGroup.GET("/monthly", statsCtrl.GetMonthlyStats)
+
+			// 進捗情報
+			statsGroup.GET("/progress-summary", statsCtrl.GetProgressSummary)
+			statsGroup.GET("/progress-level", statsCtrl.GetProgressLevel)
+
+			// 分析情報
+			statsGroup.GET("/category-breakdown", statsCtrl.GetCategoryBreakdown)
+			statsGroup.GET("/priority-breakdown", statsCtrl.GetPriorityBreakdown)
+		}
 	}
+}
+
+// StartBackgroundServices はバックグラウンドサービスを開始する（context対応版）
+func StartBackgroundServices(deps *Dependencies) {
+	// キャンセル可能なcontextを作成
+	ctx, cancel := context.WithCancel(context.Background())
+	deps.cancelFunc = cancel
+
+	// WebSocketハブの起動（context対応）
+	if deps.WSHub != nil {
+		deps.backgroundWg.Add(1)
+		go func() {
+			defer deps.backgroundWg.Done()
+
+			if err := deps.WSHub.Run(ctx); err != nil && err != context.Canceled {
+				deps.Logger.Error("WebSocket hub stopped with error", logger.Error(err))
+			} else {
+				deps.Logger.Info("WebSocket hub stopped gracefully")
+			}
+		}()
+		deps.Logger.Info("WebSocket hub started")
+	}
+
+	// タスクスケジューラーの起動
+	if deps.TaskScheduler != nil {
+		deps.TaskScheduler.Start(ctx)
+		deps.Logger.Info("Task due notification scheduler started")
+	}
+}
+
+// StopBackgroundServices はバックグラウンドサービスを停止する（context対応版）
+func StopBackgroundServices(deps *Dependencies) {
+	deps.Logger.Info("Stopping background services...")
+
+	// contextをキャンセルしてWebSocketハブを停止
+	if deps.cancelFunc != nil {
+		deps.cancelFunc()
+		deps.Logger.Info("Background context cancelled")
+	}
+
+	// タスクスケジューラーの停止
+	if deps.TaskScheduler != nil {
+		deps.TaskScheduler.Stop()
+		deps.Logger.Info("Task due notification scheduler stopped")
+	}
+
+	// メッセージブローカーの停止
+	if deps.MessageBroker != nil {
+		deps.MessageBroker.Close()
+		deps.Logger.Info("Message broker stopped")
+	}
+
+	// 全てのバックグラウンドサービスの完了を待機
+	deps.backgroundWg.Wait()
+	deps.Logger.Info("All background services stopped")
 }
