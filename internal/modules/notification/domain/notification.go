@@ -65,6 +65,21 @@ func NewNotification(
 	}
 }
 
+// GetID はIDを取得する
+func (n *Notification) GetID() string {
+	return n.ID
+}
+
+// GetUserID はユーザーIDを取得する
+func (n *Notification) GetUserID() string {
+	return n.UserID
+}
+
+// GetTitle はタイトルを取得する
+func (n *Notification) GetTitle() string {
+	return n.Title
+}
+
 // MarkAsSent は通知を送信済みにする
 func (n *Notification) MarkAsSent() {
 	n.Status = StatusSent

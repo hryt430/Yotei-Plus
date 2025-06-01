@@ -1,12 +1,13 @@
 package websocket
 
 import (
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/hryt430/Yotei+/pkg/logger"
+	"go.uber.org/zap"
 )
 
 const (
@@ -28,17 +29,37 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// Client はWebSocketクライアント
+// Client はWebSocketクライアント（ロガー追加版）
 type Client struct {
-	hub    *Hub
-	conn   *websocket.Conn
-	send   chan []byte
-	UserID string
+	hub         *Hub
+	conn        *websocket.Conn
+	send        chan []byte
+	UserID      string
+	remoteAddr  string
+	logger      logger.Logger
+	connectedAt time.Time
 }
 
-// ReadPump はクライアントからのメッセージ読み取りループ
+// NewClient は新しいWebSocketクライアントを作成（ロガー追加版）
+func NewClient(hub *Hub, conn *websocket.Conn, userID string, logger logger.Logger) *Client {
+	return &Client{
+		hub:         hub,
+		conn:        conn,
+		send:        make(chan []byte, 256),
+		UserID:      userID,
+		remoteAddr:  conn.RemoteAddr().String(),
+		logger:      logger,
+		connectedAt: time.Now(),
+	}
+}
+
+// ReadPump はクライアントからのメッセージ読み取りループ（ロガー追加版）
 func (c *Client) ReadPump() {
 	defer func() {
+		c.logger.Info("Read pump stopped, cleaning up",
+			zap.Any("userID", c.UserID),
+			zap.Any("remoteAddr", c.remoteAddr),
+			zap.Any("connectionDuration", time.Since(c.connectedAt)))
 		c.hub.unregister <- c
 		c.conn.Close()
 	}()
@@ -46,31 +67,57 @@ func (c *Client) ReadPump() {
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error {
+		c.logger.Debug("Pong received", zap.Any("userID", c.UserID))
 		c.conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
 
+	c.logger.Info("Starting read pump",
+		zap.Any("userID", c.UserID),
+		zap.Any("remoteAddr", c.remoteAddr))
+
 	// クライアント側からの切断を検知するための無限ループ
 	for {
-		_, _, err := c.conn.ReadMessage()
+		messageType, message, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
+				c.logger.Error("WebSocket read error",
+					zap.Any("userID", c.UserID),
+					zap.Any("remoteAddr", c.remoteAddr),
+					zap.Error(err))
+			} else {
+				c.logger.Info("Client disconnected normally",
+					zap.Any("userID", c.UserID),
+					zap.Any("remoteAddr", c.remoteAddr))
 			}
 			break
 		}
+
+		// メッセージを受信した場合のログ（デバッグ用）
+		c.logger.Debug("Message received from client",
+			zap.Any("userID", c.UserID),
+			zap.Any("messageType", messageType),
+			zap.Any("messageSize", len(message)))
+
 		// 実際にはクライアントからのメッセージ処理は今回必要ないが、
 		// 接続維持のためにReadMessageを呼び出す
 	}
 }
 
-// WritePump はクライアントへのメッセージ送信ループ
+// WritePump はクライアントへのメッセージ送信ループ（ロガー追加版）
 func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
+		c.logger.Info("Write pump stopped",
+			zap.Any("userID", c.UserID),
+			zap.Any("remoteAddr", c.remoteAddr))
 		c.conn.Close()
 	}()
+
+	c.logger.Info("Starting write pump",
+		zap.Any("userID", c.UserID),
+		zap.Any("remoteAddr", c.remoteAddr))
 
 	for {
 		select {
@@ -78,12 +125,17 @@ func (c *Client) WritePump() {
 			c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if !ok {
 				// ハブがチャネルを閉じた
+				c.logger.Info("Send channel closed by hub",
+					zap.Any("userID", c.UserID))
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
 			w, err := c.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
+				c.logger.Error("Failed to get next writer",
+					zap.Any("userID", c.UserID),
+					zap.Error(err))
 				return
 			}
 			w.Write(message)
@@ -96,42 +148,62 @@ func (c *Client) WritePump() {
 			}
 
 			if err := w.Close(); err != nil {
+				c.logger.Error("Failed to close writer",
+					zap.Any("userID", c.UserID),
+					zap.Error(err))
 				return
 			}
+
+			c.logger.Debug("Message sent to client",
+				zap.Any("userID", c.UserID),
+				zap.Any("messageSize", len(message)),
+				zap.Any("batchSize", n+1))
 
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				c.logger.Error("Failed to send ping",
+					zap.Any("userID", c.UserID),
+					zap.Error(err))
 				return
 			}
+			c.logger.Debug("Ping sent", zap.Any("userID", c.UserID))
 		}
 	}
 }
 
-// ServeWs はWebSocket接続をハンドリングする
-func ServeWs(hub *Hub) gin.HandlerFunc {
+// ServeWs はWebSocket接続をハンドリングする（ロガー追加版）
+func ServeWs(hub *Hub, logger logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// ユーザーIDをクエリパラメータから取得
 		userID := c.Query("user_id")
 		if userID == "" {
+			logger.Warn("WebSocket connection attempt without user_id",
+				zap.Any("remoteAddr", c.ClientIP()))
 			c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
 			return
 		}
 
+		logger.Info("WebSocket upgrade request",
+			zap.Any("userID", userID),
+			zap.Any("remoteAddr", c.ClientIP()))
+
 		// WebSocketにアップグレード
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
-			log.Println(err)
+			logger.Error("Failed to upgrade to WebSocket",
+				zap.Any("userID", userID),
+				zap.Any("remoteAddr", c.ClientIP()),
+				zap.Error(err))
 			return
 		}
 
+		logger.Info("WebSocket connection established",
+			zap.Any("userID", userID),
+			zap.Any("remoteAddr", conn.RemoteAddr().String()))
+
 		// クライアント作成
-		client := &Client{
-			hub:    hub,
-			conn:   conn,
-			send:   make(chan []byte, 256),
-			UserID: userID,
-		}
+		client := NewClient(hub, conn, userID, logger)
 		client.hub.register <- client
 
 		// クライアントのループを開始
