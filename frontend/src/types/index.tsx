@@ -1,44 +1,127 @@
+// === User Types ===
 export interface User {
   id: string;
   email: string;
   username: string; 
-  role: string;
+  role: 'user' | 'admin';
   email_verified?: boolean;
   last_login?: string;
   created_at?: string;
   updated_at?: string;
 }
 
+// === Task Types ===
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type TaskCategory = 'WORK' | 'PERSONAL' | 'STUDY' | 'HEALTH' | 'SHOPPING' | 'OTHER';
+
 export interface Task {
   id: string;
   title: string;
   description: string;
-  status: 'TODO' | 'IN_PROGRESS' | 'DONE'; 
-  priority: 'LOW' | 'MEDIUM' | 'HIGH'; 
-  category: string
+  status: TaskStatus;
+  priority: TaskPriority;
+  category: TaskCategory; // ✅ 型安全なcategory追加
   assignee_id?: string;
   created_by: string;
-  due_date?: string; 
+  due_date?: string;
+  is_overdue?: boolean; // ✅ バックエンドで計算されるフィールド
   created_at: string;
   updated_at: string;
-  is_overdue?: boolean; 
 }
+
+export interface TaskRequest {
+  title?: string;
+  description?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  category?: TaskCategory; // ✅ category追加
+  assignee_id?: string;
+  due_date?: string;
+}
+
+// === Notification Types ===
+export type NotificationType = 
+  | 'APP_NOTIFICATION' 
+  | 'TASK_ASSIGNED' 
+  | 'TASK_COMPLETED' 
+  | 'TASK_DUE_SOON' 
+  | 'SYSTEM_NOTICE';
+
+export type NotificationStatus = 'PENDING' | 'SENT' | 'READ' | 'FAILED';
 
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'APP_NOTIFICATION' | 'TASK_ASSIGNED' | 'TASK_COMPLETED' | 'TASK_DUE_SOON' | 'SYSTEM_NOTICE' | 'FRIEND_REQUEST' | 'FRIEND_ACCEPTED' | 'FRIEND_REJECTED';
+  type: NotificationType;
   title: string;
   message: string;
-  status: 'PENDING' | 'SENT' | 'READ' | 'FAILED';
+  status: NotificationStatus; // ✅ is_readフィールド削除、statusのみで判定
   metadata?: Record<string, string>;
   created_at: string;
   updated_at: string;
   sent_at?: string;
-  is_read: boolean;
 }
 
-// API レスポンス型（バックエンドの形式に合わせる）
+// === Statistics Types (バックエンド完全準拠) ===
+export type ProgressColor = 
+  | '#22c55e' // ColorDarkGreen (100%)
+  | '#84cc16' // ColorGreen (80-99%)
+  | '#eab308' // ColorYellow (60-79%)
+  | '#f97316' // ColorOrange (40-59%)
+  | '#ef4444' // ColorLightRed (20-39%)
+  | '#dc2626' // ColorRed (1-19%)
+  | '#9ca3af'; // ColorGray (0%)
+
+export interface DailyStats {
+  date: string;
+  total_tasks: number;
+  completed_tasks: number;
+  in_progress_tasks: number;
+  todo_tasks: number;
+  overdue_tasks: number;
+  completion_rate: number; // 0-100の範囲
+}
+
+export interface DailyPreview {
+  date: string;
+  task_count: number;
+  has_overdue: boolean;
+}
+
+export interface WeeklyPreview {
+  week_start: string;
+  week_end: string;
+  total_tasks: number;
+  daily_preview: Record<string, DailyPreview>; // "Monday", "Tuesday", etc.
+}
+
+export interface WeeklyStats {
+  week_start: string;
+  week_end: string;
+  total_tasks: number;
+  completed_tasks: number;
+  completion_rate: number;
+  daily_stats: Record<string, DailyStats>; // "Monday", "Tuesday", etc.
+}
+
+export interface ProgressLevel {
+  percentage: number;
+  color: ProgressColor;
+  label: string; // "完了", "優秀", "良好", "普通", "要改善", "低調", "未着手"
+}
+
+export interface DashboardStats {
+  today_stats: DailyStats;
+  weekly_overview: WeeklyStats;
+  upcoming_week_tasks: WeeklyPreview;
+  category_breakdown: Record<TaskCategory, number>;
+  priority_breakdown: Record<TaskPriority, number>;
+  recent_completions: Task[];
+  overdue_tasks_count: number;
+}
+
+// === API Response Types ===
 export interface ApiResponse<T = any> {
   success: boolean;
   message?: string;
@@ -47,9 +130,10 @@ export interface ApiResponse<T = any> {
 
 export interface ErrorResponse {
   error: string;
+  code?: string;
 }
 
-// 認証関連の型
+// === Auth Types (Token認証統一) ===
 export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -75,24 +159,17 @@ export interface AuthResponse {
     access_token: string;
     refresh_token: string;
     token_type: string;
+    expires_in?: number;
+    user: User;
   };
 }
 
 export interface UserResponse {
   success: boolean;
-  data: User
+  data: User;
 }
 
-// タスク関連の型
-export interface TaskRequest {
-  title?: string;
-  description?: string | undefined
-  status?: 'TODO' | 'IN_PROGRESS' | 'DONE';
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH';
-  assignee_id?: string;
-  due_date?: string;
-}
-
+// === Task API Response Types ===
 export interface TaskListResponse {
   success: boolean;
   data: {
@@ -109,10 +186,11 @@ export interface TaskResponse {
   data: Task;
 }
 
-// フィルター・ソート関連
+// === Filter & Pagination Types ===
 export interface TaskFilter {
-  status?: 'TODO' | 'IN_PROGRESS' | 'DONE';
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH';
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  category?: TaskCategory; // ✅ category追加
   assignee_id?: string;
   created_by?: string;
   due_date_from?: string;
@@ -130,7 +208,7 @@ export interface SortOptions {
   direction: 'ASC' | 'DESC';
 }
 
-// フロントエンド用の状態管理型
+// === Frontend State Types ===
 export interface TasksState {
   tasks: Task[];
   isLoading: boolean;
@@ -154,13 +232,7 @@ export interface NotificationState {
   error: string | null;
 }
 
-// ユーティリティ型
-export type TaskStatus = Task['status'];
-export type TaskPriority = Task['priority'];
-export type NotificationType = Notification['type'];
-export type NotificationStatus = Notification['status'];
-
-// 表示用の型変換
+// === Display Types ===
 export interface TaskDisplayData extends Omit<Task, 'assignee_id' | 'created_by' | 'due_date' | 'created_at' | 'updated_at'> {
   assignee?: User;
   creator?: User;
@@ -170,20 +242,69 @@ export interface TaskDisplayData extends Omit<Task, 'assignee_id' | 'created_by'
   dueDateLabel?: string;
   priorityLabel: string;
   statusLabel: string;
+  categoryLabel: string; // ✅ category表示名
 }
 
-// フォーム用の型
+// === Form Types ===
 export interface TaskFormData {
   title: string;
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
+  category: TaskCategory; // ✅ category追加
   assignee_id?: string;
   due_date?: string;
 }
 
-// API エラー型
+// === WebSocket Types ===
+export interface WebSocketMessage {
+  type: 'notification' | 'task_update' | 'user_update';
+  data: any;
+  timestamp: string;
+}
+
+export interface NotificationMessage extends WebSocketMessage {
+  type: 'notification';
+  data: Notification;
+}
+
+export interface TaskUpdateMessage extends WebSocketMessage {
+  type: 'task_update';
+  data: {
+    task: Task;
+    action: 'created' | 'updated' | 'deleted' | 'status_changed' | 'assigned';
+  };
+}
+
+// === Utility Types ===
 export interface ApiError extends Error {
   status?: number;
   code?: string;
+  response?: any;
 }
+
+// === Constants ===
+export const TASK_STATUSES: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE'];
+export const TASK_PRIORITIES: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH'];
+export const TASK_CATEGORIES: TaskCategory[] = ['WORK', 'PERSONAL', 'STUDY', 'HEALTH', 'SHOPPING', 'OTHER'];
+
+export const CATEGORY_LABELS: Record<TaskCategory, string> = {
+  WORK: '仕事',
+  PERSONAL: '個人',
+  STUDY: '学習',
+  HEALTH: '健康',
+  SHOPPING: '買い物',
+  OTHER: 'その他'
+};
+
+export const PRIORITY_LABELS: Record<TaskPriority, string> = {
+  HIGH: '高',
+  MEDIUM: '中',
+  LOW: '低'
+};
+
+export const STATUS_LABELS: Record<TaskStatus, string> = {
+  TODO: '未着手',
+  IN_PROGRESS: '進行中',
+  DONE: '完了'
+};
