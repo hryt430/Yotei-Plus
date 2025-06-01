@@ -2,6 +2,51 @@ import { ApiResponse, ErrorResponse } from '@/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
+// ✅ リクエスト情報を保持するインターフェース
+interface RequestInfo {
+  url: string
+  method: string
+  headers: Record<string, string>
+  body?: any
+}
+
+// Token管理
+class TokenManager {
+  private static readonly ACCESS_TOKEN_KEY = 'access_token'
+  private static readonly REFRESH_TOKEN_KEY = 'refresh_token'
+
+  static getAccessToken(): string | null {
+    if (typeof window === 'undefined') return null
+    return localStorage.getItem(this.ACCESS_TOKEN_KEY)
+  }
+
+  static getRefreshToken(): string | null {
+    if (typeof window === 'undefined') return null
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY)
+  }
+
+  static setTokens(accessToken: string, refreshToken: string): void {
+    if (typeof window === 'undefined') return
+    localStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken)
+    localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken)
+  }
+
+  static clearTokens(): void {
+    if (typeof window === 'undefined') return
+    localStorage.removeItem(this.ACCESS_TOKEN_KEY)
+    localStorage.removeItem(this.REFRESH_TOKEN_KEY)
+  }
+
+  static isTokenExpired(token: string): boolean {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      return payload.exp * 1000 < Date.now()
+    } catch {
+      return true
+    }
+  }
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -24,9 +69,103 @@ class ApiClient {
   private baseUrl: string
   private requestInterceptors: RequestInterceptor[] = []
   private responseInterceptors: ResponseInterceptor[] = []
+  private isRefreshing = false
+  private refreshSubscribers: Array<(token: string) => void> = []
 
   constructor(baseUrl: string = API_BASE) {
     this.baseUrl = baseUrl
+    this.setupTokenInterceptors()
+  }
+
+  // Token認証のインターセプターを設定
+  private setupTokenInterceptors() {
+    // リクエストインターセプター: JWTトークンを自動設定
+    this.addRequestInterceptor((config) => {
+      const token = TokenManager.getAccessToken()
+      if (token) {
+        config.headers = {
+          ...config.headers,
+          'Authorization': `Bearer ${token}`
+        }
+      }
+      return config
+    })
+
+    // ✅ レスポンスインターセプター: 修正版
+    this.addResponseInterceptor(async (response) => {
+      if (response.status === 401 && !response.url.includes('/auth/login')) {
+        
+        if (!this.isRefreshing) {
+          this.isRefreshing = true
+          
+          try {
+            const newToken = await this.refreshAccessToken()
+            this.isRefreshing = false
+            this.onTokenRefreshed(newToken)
+            
+            // ✅ 401エラーの場合は、呼び出し元で再試行する必要があることを示す特別なエラーを投げる
+            throw new ApiError('Token refreshed, retry needed', 401, 'TOKEN_REFRESHED', { newToken })
+          } catch (refreshError) {
+            this.isRefreshing = false
+            this.onTokenRefreshFailed()
+            throw new ApiError('認証が失効しました。再ログインしてください。', 401, 'TOKEN_EXPIRED')
+          }
+        } else {
+          // 既にリフレッシュ中の場合は待機
+          return new Promise((resolve, reject) => {
+            this.refreshSubscribers.push((newToken: string) => {
+              // リフレッシュ完了後に再試行が必要
+              reject(new ApiError('Token refreshed, retry needed', 401, 'TOKEN_REFRESHED', { newToken }))
+            })
+          })
+        }
+      }
+      
+      return response
+    })
+  }
+
+  // トークンリフレッシュ
+  private async refreshAccessToken(): Promise<string> {
+    const refreshToken = TokenManager.getRefreshToken()
+    if (!refreshToken) {
+      throw new Error('No refresh token available')
+    }
+
+    const response = await fetch(`${this.baseUrl}/auth/refresh-token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${refreshToken}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Token refresh failed')
+    }
+
+    const data = await response.json()
+    const { access_token, refresh_token } = data.data
+    
+    TokenManager.setTokens(access_token, refresh_token)
+    return access_token
+  }
+
+  // トークンリフレッシュ成功時の処理
+  private onTokenRefreshed(newToken: string) {
+    this.refreshSubscribers.forEach(callback => callback(newToken))
+    this.refreshSubscribers = []
+  }
+
+  // トークンリフレッシュ失敗時の処理
+  private onTokenRefreshFailed() {
+    TokenManager.clearTokens()
+    this.refreshSubscribers = []
+    
+    // ログインページにリダイレクト
+    if (typeof window !== 'undefined') {
+      window.location.href = '/auth/login'
+    }
   }
 
   // リクエストインターセプターを追加
@@ -42,7 +181,6 @@ class ApiClient {
   // 基本的なfetch設定を取得
   private getDefaultOptions(): RequestInit {
     return {
-      credentials: 'include', // HTTPOnly Cookie対応
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -83,10 +221,11 @@ class ApiClient {
     return new ApiError(message, response.status, undefined, data)
   }
 
-  // 基本リクエストメソッド
+  // ✅ 基本リクエストメソッド: 自動リトライ機能付き
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retryCount = 0
   ): Promise<T> {
     let url = endpoint
     if (!url.startsWith('http')) {
@@ -126,6 +265,14 @@ class ApiClient {
 
       return data as T
     } catch (error) {
+      // ✅ TOKEN_REFRESHED エラーの場合は自動リトライ
+      if (error instanceof ApiError && 
+          error.code === 'TOKEN_REFRESHED' && 
+          retryCount < 1) {
+        // 新しいトークンで再試行
+        return this.request<T>(endpoint, options, retryCount + 1)
+      }
+      
       if (error instanceof ApiError) {
         throw error
       }
@@ -321,6 +468,9 @@ class ApiClient {
 
 // シングルトンインスタンス
 export const apiClient = new ApiClient()
+
+// Token管理のエクスポート
+export { TokenManager }
 
 // 開発環境でのデバッグ用インターセプター
 if (process.env.NODE_ENV === 'development') {
