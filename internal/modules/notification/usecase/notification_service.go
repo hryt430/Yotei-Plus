@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	commonDomain "github.com/hryt430/Yotei+/internal/common/domain"
 	"github.com/hryt430/Yotei+/internal/modules/notification/domain"
 	"github.com/hryt430/Yotei+/internal/modules/notification/usecase/input"
 	"github.com/hryt430/Yotei+/internal/modules/notification/usecase/output"
@@ -13,18 +14,11 @@ import (
 	"github.com/hryt430/Yotei+/pkg/logger"
 )
 
-// UserValidator はユーザー存在確認のインターフェース
-type UserValidator interface {
-	UserExists(ctx context.Context, userID string) (bool, error)
-	GetUserInfo(ctx context.Context, userID string) (*UserInfo, error)
-}
+// UserInfo は通知モジュール用のユーザー情報（共通定義を使用）
+type UserInfo = commonDomain.UserInfo
 
-// UserInfo はユーザー基本情報
-type UserInfo struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-}
+// UserValidator は通知モジュール用のユーザーバリデーター（共通定義を使用）
+type UserValidator = commonDomain.UserValidator
 
 type notificationUseCase struct {
 	repository    persistence.NotificationRepository
@@ -34,7 +28,7 @@ type notificationUseCase struct {
 	logger        logger.Logger
 }
 
-// NewNotificationUseCase は通知ユースケースのインスタンスを作成する
+// NewNotificationUseCase は通知ユースケースのインスタンスを作成する（修正版）
 func NewNotificationUseCase(
 	repository persistence.NotificationRepository,
 	appGateway output.AppNotificationGateway,
@@ -51,14 +45,14 @@ func NewNotificationUseCase(
 	}
 }
 
-// CreateNotification は新しい通知を作成する
+// CreateNotification は新しい通知を作成する（修正版）
 func (uc *notificationUseCase) CreateNotification(ctx context.Context, input input.CreateNotificationInput) (*domain.Notification, error) {
 	// 入力バリデーション
 	if err := uc.validateCreateInput(input); err != nil {
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
-	// ユーザー存在確認
+	// ユーザー存在確認（統一インターフェース使用）
 	exists, err := uc.userValidator.UserExists(ctx, input.UserID)
 	if err != nil {
 		uc.logger.Error("Failed to validate user existence", logger.Any("userID", input.UserID), logger.Error(err))
@@ -80,12 +74,12 @@ func (uc *notificationUseCase) CreateNotification(ctx context.Context, input inp
 		input.Metadata,
 	)
 
-	// チャネルの追加（エラーハンドリング強化）
+	// チャネルの追加
 	if err := uc.addChannelsToNotification(ctx, notification, input); err != nil {
 		return nil, fmt.Errorf("failed to add channels: %w", err)
 	}
 
-	// 通知をデータベースに保存（トランザクション使用）
+	// 通知をデータベースに保存
 	if err := uc.repository.Save(ctx, notification); err != nil {
 		uc.logger.Error("Failed to save notification", logger.Any("notificationID", notification.ID), logger.Error(err))
 		return nil, fmt.Errorf("failed to save notification: %w", err)
