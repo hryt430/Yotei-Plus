@@ -12,7 +12,7 @@ import (
 
 // NotificationService は通知サービスのインターフェース
 type NotificationService interface {
-	CreateNotification(ctx context.Context, input input.CreateNotificationInput) (*NotificationDomain, error)
+	CreateNotification(ctx context.Context, input input.CreateNotificationInput) (NotificationDomain, error)
 }
 
 // NotificationDomain は通知ドメインのインターフェース（循環参照回避のため）
@@ -151,7 +151,7 @@ func (p *TaskEventPublisher) createTaskAssignedNotification(ctx context.Context,
 
 	p.logger.Info("Task assigned notification created",
 		logger.Any("taskID", task.ID),
-		logger.Any("notificationID", (*notification).GetID()),
+		logger.Any("notificationID", notification.GetID()),
 		logger.Any("assigneeID", *task.AssigneeID))
 
 	return nil
@@ -194,7 +194,7 @@ func (p *TaskEventPublisher) createTaskCompletedNotification(ctx context.Context
 
 	p.logger.Info("Task completed notification created",
 		logger.Any("taskID", task.ID),
-		logger.Any("notificationID", (*notification).GetID()),
+		logger.Any("notificationID", notification.GetID()),
 		logger.Any("createdBy", task.CreatedBy))
 
 	return nil
@@ -236,7 +236,7 @@ func (p *TaskEventPublisher) createTaskUpdateNotification(ctx context.Context, t
 
 	p.logger.Info("Task update notification created",
 		logger.Any("taskID", task.ID),
-		logger.Any("notificationID", (*notification).GetID()),
+		logger.Any("notificationID", notification.GetID()),
 		logger.Any("assigneeID", *task.AssigneeID))
 
 	return nil
@@ -281,7 +281,7 @@ func (p *TaskEventPublisher) createTaskOverdueNotification(ctx context.Context, 
 
 	p.logger.Info("Task overdue notification created",
 		logger.Any("taskID", task.ID),
-		logger.Any("notificationID", (*notification).GetID()),
+		logger.Any("notificationID", notification.GetID()),
 		logger.Any("assigneeID", *task.AssigneeID))
 
 	return nil

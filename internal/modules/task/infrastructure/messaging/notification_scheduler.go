@@ -222,7 +222,7 @@ func (s *TaskDueNotificationScheduler) createDueNotification(ctx context.Context
 
 	s.logger.Info("Created due notification",
 		logger.Any("taskID", task.ID),
-		logger.Any("notificationID", (*notification).GetID()),
+		logger.Any("notificationID", notification.GetID()),
 		logger.Any("assigneeID", *task.AssigneeID))
 
 	return nil
