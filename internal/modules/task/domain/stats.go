@@ -199,7 +199,7 @@ func NewDailyStats(date time.Time, tasks []*Task) *DailyStats {
 			stats.TodoTasks++
 		}
 
-		if task.IsOverdue() {
+		if task.CheckIsOverdue() {
 			stats.OverdueTasks++
 		}
 	}

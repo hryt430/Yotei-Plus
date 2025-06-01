@@ -190,7 +190,7 @@ func (s *TaskStatsService) GetWeeklyPreview(ctx context.Context, userID string, 
 
 		hasOverdue := false
 		for _, task := range tasks {
-			if task.IsOverdue() {
+			if task.CheckIsOverdue() {
 				hasOverdue = true
 				break
 			}

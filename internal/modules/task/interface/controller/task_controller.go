@@ -72,7 +72,7 @@ func taskToResponse(task *domain.Task) TaskResponse {
 		DueDate:     task.DueDate,
 		CreatedAt:   task.CreatedAt,
 		UpdatedAt:   task.UpdatedAt,
-		IsOverdue:   task.IsOverdue(),
+		IsOverdue:   task.CheckIsOverdue(),
 	}
 }
 
