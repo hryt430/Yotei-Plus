@@ -3,21 +3,38 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Calendar } from "@/components/calendar"
-import { TaskList } from "@/components/task-list"
-import { TaskListWithFilters } from "@/components/task-list-with-filters"
-import { TaskAnalyticsPanel } from "@/components/task-analytics-panel"
-import { TaskCreationModal } from "@/components/task-creation-modal"
-import { AddFriendModal } from "@/components/add-friend-modal"
-import { Sidebar } from "@/components/sidebar"
-import { NotificationPanel } from "@/components/notification-panel"
-import { NotificationProvider, useNotifications } from "@/components/notification-provider"
+import { TaskList } from "@/components/tasks/task-list"
+import { TaskListWithFilters } from "@/components/tasks/task-list-with-filters"
+import { TaskAnalyticsPanel } from "@/components/tasks/task-analytics-panel"
+import { TaskCreationModal } from "@/components/tasks/task-creation-modal"
+import { AddFriendModal } from "@/components/auth/add-friend-modal"
+import { Sidebar } from "@/components/layout/sidebar"
+import { NotificationPanel } from "@/components/notifications/notification-panel"
+import { NotificationProvider, useNotifications } from "@/components/notifications/notification-provider"
 import { useAuth } from "@/providers/auth-provider"
 import { getTasks, createTask, updateTask, deleteTask } from "@/api/task"
-import { getUsers } from "@/api/auth"
+import { getUsers } from "@/api/users"
 import { handleApiError } from "@/lib/utils"
-import { success, error as showError } from "@/hooks/use-toast"
-import type { Task, User, TaskFormData } from "@/types"
+import { toast } from "@/hooks/use-toast"
+import type { Task, User, TaskFormData, TaskRequest } from "@/types"
 import { ChevronDown, Loader } from "lucide-react"
+
+// 成功・エラートースト用のヘルパー関数
+const success = (message: string) => {
+  toast({
+    title: "成功",
+    description: message,
+    variant: "default",
+  })
+}
+
+const error = (title: string, description: string) => {
+  toast({
+    title,
+    description,
+    variant: "destructive",
+  })
+}
 
 function TaskManagementContent() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -27,13 +44,14 @@ function TaskManagementContent() {
   const [currentPage, setCurrentPage] = useState<"dashboard" | "tasks">("dashboard")
   const [showTaskDemo, setShowTaskDemo] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [taskError, setTaskError] = useState<string | null>(null)
 
   const router = useRouter()
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
 
-  const { notifications, markAsRead, markAllAsRead, deleteNotification, handleFriendAction, addNotification } =
-    useNotifications()
+  // const { notifications, markAsRead, markAllAsRead, deleteNotification, handleFriendAction, addNotification } =
+  //   useNotifications()
+   const { addNotification } = useNotifications()
 
   // 認証チェック
   useEffect(() => {
@@ -52,7 +70,7 @@ function TaskManagementContent() {
         // タスクとユーザー一覧を並行取得
         const [tasksResponse, usersResponse] = await Promise.all([
           getTasks({ page: 1, page_size: 50 }),
-          getUsers()
+          getUsers({ limit: 100 })
         ])
 
         if (tasksResponse.success && tasksResponse.data) {
@@ -60,17 +78,12 @@ function TaskManagementContent() {
         }
 
         if (usersResponse.success && usersResponse.data) {
-          setUsers(usersResponse.data.map(u => ({
-            id: u.id,
-            username: u.username,
-            email: u.email,
-            role: u.role
-          })))
+          setUsers(usersResponse.data)
         }
 
       } catch (err) {
         console.error('Error fetching data:', err)
-        setError(handleApiError(err))
+        setTaskError(handleApiError(err))
       } finally {
         setLoading(false)
       }
@@ -94,7 +107,7 @@ function TaskManagementContent() {
         success('期限を更新しました')
       }
     } catch (err) {
-      showError('更新エラー', handleApiError(err))
+      error('更新エラー', handleApiError(err))
     }
   }
 
@@ -113,16 +126,17 @@ function TaskManagementContent() {
         success('ステータスを更新しました')
       }
     } catch (err) {
-      showError('更新エラー', handleApiError(err))
+      error('更新エラー', handleApiError(err))
     }
   }
 
-  const createNewTask = async (formData: TaskFormData) => {
+  const createNewTask = async (formData: TaskRequest) => {
     try {
       const response = await createTask({
         title: formData.title,
         description: formData.description,
         priority: formData.priority,
+        category: formData.category,
         due_date: formData.due_date,
       })
 
@@ -132,7 +146,7 @@ function TaskManagementContent() {
         success('タスクを作成しました')
       }
     } catch (err) {
-      showError('作成エラー', handleApiError(err))
+      error('作成エラー', handleApiError(err))
     }
   }
 
@@ -187,7 +201,36 @@ function TaskManagementContent() {
       return
     }
 
-    // その他のデモタスク追加ロジック...
+    // その他のデモタスクはサンプルタスクを追加
+    if (type === "mixed") {
+      const demoTasks: Task[] = [
+        {
+          id: `demo-${Date.now()}-1`,
+          title: "Demo Task 1",
+          description: "This is a demo task",
+          status: "TODO",
+          priority: "HIGH",
+          category: "WORK",
+          created_by: user?.id || "demo-user",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          due_date: new Date(Date.now() + 86400000).toISOString(),
+        },
+        {
+          id: `demo-${Date.now()}-2`,
+          title: "Demo Task 2",
+          description: "Another demo task",
+          status: "IN_PROGRESS",
+          priority: "MEDIUM",
+          category: "PERSONAL",
+          created_by: user?.id || "demo-user",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          due_date: new Date(Date.now() + 172800000).toISOString(),
+        }
+      ]
+      setTasks(prev => [...demoTasks, ...prev])
+    }
   }
 
   // ローディング中
@@ -203,11 +246,11 @@ function TaskManagementContent() {
   }
 
   // エラー表示
-  if (error) {
+  if (taskError) {
     return (
       <div className="h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-600 mb-4">{error}</div>
+          <div className="text-red-600 mb-4">{taskError}</div>
           <button
             onClick={() => window.location.reload()}
             className="bg-gray-900 text-white px-4 py-2 rounded-md hover:bg-gray-800"
@@ -273,7 +316,7 @@ function TaskManagementContent() {
                           onClick={() => addDemoTasks("mixed")}
                           className="w-full text-left px-2 py-1 text-xs hover:bg-gray-100 rounded"
                         >
-                          Add Mixed Tasks (5)
+                          Add Mixed Tasks (2)
                         </button>
                         <button
                           onClick={() => addDemoTasks("completed")}
@@ -304,13 +347,7 @@ function TaskManagementContent() {
                   </>
                 )}
               </div>
-              <NotificationPanel
-                notifications={notifications}
-                onAction={handleFriendAction}
-                onMarkAsRead={markAsRead}
-                onMarkAllAsRead={markAllAsRead}
-                onDelete={deleteNotification}
-              />
+              <NotificationPanel/>
             </div>
           </div>
         </header>

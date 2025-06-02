@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'
 import { Toaster } from '@/components/ui/feedback/toaster'
 import { AuthProvider } from '@/providers/auth-provider'
 import { ThemeProvider } from '@/providers/theme-provider'
+import { NotificationProvider } from '@/components/notifications'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -23,10 +24,15 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light">
           <AuthProvider>
-            <main className="min-h-screen bg-background">
-              {children}
-            </main>
-            <Toaster />
+            <NotificationProvider 
+              enableWebSocket={true}
+              maxNotifications={100}
+            >
+              <main className="min-h-screen bg-background">
+                {children}
+              </main>
+              <Toaster />
+            </NotificationProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

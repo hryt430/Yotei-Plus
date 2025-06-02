@@ -28,7 +28,7 @@ export default function HomePage() {
   // 認証済みユーザーをダッシュボードにリダイレクト
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.push('/dashboard')
+      router.push('/home')
     }
   }, [isAuthenticated, isLoading, router])
 
