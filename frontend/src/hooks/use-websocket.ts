@@ -164,10 +164,10 @@ export function useWebSocket(config: WebSocketConfig = {}) {
         try {
           const message: WebSocketMessage = JSON.parse(event.data)
           
-          // Pong応答の処理
-          if (message.type === 'pong') {
-            return
-          }
+          // Todo: Pong応答の処理
+        //   if (message.type === 'pong') {
+        //     return
+        //   }
 
           // メッセージタイプに応じたハンドラーを実行
           const handlers = messageHandlersRef.current.get(message.type)
