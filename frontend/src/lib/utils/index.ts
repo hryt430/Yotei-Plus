@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { Task, TaskDisplayData, User } from "@/types"
+import { Task, TaskDisplayData, User, TaskCategory, CATEGORY_LABELS } from "@/types"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -8,7 +8,9 @@ export function cn(...inputs: ClassValue[]) {
 
 // 日付ユーティリティ
 export function formatDate(dateString: string): string {
+  if (!dateString) return '';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat('ja-JP', {
     year: 'numeric',
     month: 'short',
@@ -17,7 +19,9 @@ export function formatDate(dateString: string): string {
 }
 
 export function formatDateTime(dateString: string): string {
+  if (!dateString) return '';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat('ja-JP', {
     year: 'numeric',
     month: 'short',
@@ -28,6 +32,7 @@ export function formatDateTime(dateString: string): string {
 }
 
 export function isToday(dateString: string): boolean {
+  if (!dateString) return false;
   const date = new Date(dateString);
   const today = new Date();
   
@@ -37,6 +42,7 @@ export function isToday(dateString: string): boolean {
 }
 
 export function isTomorrow(dateString: string): boolean {
+  if (!dateString) return false;
   const date = new Date(dateString);
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -47,6 +53,7 @@ export function isTomorrow(dateString: string): boolean {
 }
 
 export function isOverdue(dateString: string): boolean {
+  if (!dateString) return false;
   const date = new Date(dateString);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -74,6 +81,7 @@ export function getRelativeDateLabel(dateString: string): string {
 }
 
 export function getDaysUntil(dateString: string): number {
+  if (!dateString) return 0;
   const date = new Date(dateString);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -109,6 +117,10 @@ export function getPriorityLabel(priority: Task['priority']): string {
     default:
       return '不明';
   }
+}
+
+export function getCategoryLabel(category: TaskCategory): string {
+  return CATEGORY_LABELS[category] || 'その他';
 }
 
 export function getStatusColor(status: Task['status']): string {
@@ -155,6 +167,7 @@ export function transformTaskForDisplay(task: Task, users: User[] = []): TaskDis
     dueDateLabel: task.due_date ? getRelativeDateLabel(task.due_date) : undefined,
     priorityLabel: getPriorityLabel(task.priority),
     statusLabel: getStatusLabel(task.status),
+    categoryLabel: getCategoryLabel(task.category), // ✅ 必須フィールドを追加
   };
 }
 
