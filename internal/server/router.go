@@ -101,11 +101,16 @@ func setupWebSocketRoutes(router *gin.Engine, deps *Dependencies) {
 		return
 	}
 
+	// 認証ミドルウェアの初期化（notificationRoutesと同じパターン）
+	authMw := authMiddleware.NewAuthMiddleware(deps.TokenService)
+
 	// WebSocketエンドポイント
 	wsGroup := router.Group("/ws")
 	{
-		// リアルタイム通知用WebSocket
-		wsGroup.GET("/notifications", websocket.ServeWs(deps.WSHub, deps.Logger))
+		// ✅ WebSocket用の認証ミドルウェアを追加
+		wsGroup.GET("/notifications",
+			authMw.WebSocketAuthRequired(), // ← 新しく追加する認証ミドルウェア
+			websocket.ServeWs(deps.WSHub, deps.Logger))
 	}
 }
 

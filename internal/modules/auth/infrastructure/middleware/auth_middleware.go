@@ -6,7 +6,7 @@ import (
 
 	commonMiddleware "github.com/hryt430/Yotei+/internal/common/middleware"
 	tokenService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/token"
-	"github.com/hryt430/Yotei+/pkg/token"
+	token "github.com/hryt430/Yotei+/pkg/token"
 	"github.com/hryt430/Yotei+/pkg/utils"
 
 	"github.com/gin-gonic/gin"
@@ -48,6 +48,43 @@ func (m *AuthMiddleware) AuthRequired() gin.HandlerFunc {
 		}
 
 		// ユーザー情報をコンテキストに設定
+		ctx.Set("user_id", claims.UserID)
+		ctx.Set("email", claims.Email)
+		ctx.Set("username", claims.Username)
+		ctx.Set("role", claims.Role)
+
+		ctx.Next()
+	}
+}
+
+func (m *AuthMiddleware) WebSocketAuthRequired() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		// トークンをクエリパラメータから取得
+		tokenString := ctx.Query("token")
+		if tokenString == "" {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "token is required"})
+			ctx.Abort()
+			return
+		}
+
+		claims, err := m.tokenUseCase.ValidateAccessToken(tokenString)
+		if err != nil {
+			if err == token.ErrExpiredToken {
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Token has expired"})
+				ctx.Abort()
+				return
+			}
+			if err == token.ErrTokenBlacklisted {
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Token has been revoked"})
+				ctx.Abort()
+				return
+			}
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			ctx.Abort()
+			return
+		}
+
+		// ユーザー情報をコンテキストに設定（既存のAuthRequiredと同じ）
 		ctx.Set("user_id", claims.UserID)
 		ctx.Set("email", claims.Email)
 		ctx.Set("username", claims.Username)

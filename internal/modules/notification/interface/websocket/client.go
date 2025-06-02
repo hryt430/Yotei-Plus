@@ -175,35 +175,36 @@ func (c *Client) WritePump() {
 // ServeWs はWebSocket接続をハンドリングする（ロガー追加版）
 func ServeWs(hub *Hub, logger logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// ユーザーIDをクエリパラメータから取得
-		userID := c.Query("user_id")
-		if userID == "" {
-			logger.Warn("WebSocket connection attempt without user_id",
+		// ミドルウェアで設定されたユーザーIDを取得
+		userID, exists := c.Get("user_id")
+		if !exists {
+			logger.Warn("WebSocket connection without user authentication",
 				zap.Any("remoteAddr", c.ClientIP()))
-			c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
 			return
 		}
 
+		userIDStr := userID.(string)
 		logger.Info("WebSocket upgrade request",
-			zap.Any("userID", userID),
+			zap.Any("userID", userIDStr),
 			zap.Any("remoteAddr", c.ClientIP()))
 
 		// WebSocketにアップグレード
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			logger.Error("Failed to upgrade to WebSocket",
-				zap.Any("userID", userID),
+				zap.Any("userID", userIDStr),
 				zap.Any("remoteAddr", c.ClientIP()),
 				zap.Error(err))
 			return
 		}
 
 		logger.Info("WebSocket connection established",
-			zap.Any("userID", userID),
+			zap.Any("userID", userIDStr),
 			zap.Any("remoteAddr", conn.RemoteAddr().String()))
 
 		// クライアント作成
-		client := NewClient(hub, conn, userID, logger)
+		client := NewClient(hub, conn, userIDStr, logger)
 		client.hub.register <- client
 
 		// クライアントのループを開始
