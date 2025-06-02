@@ -1,9 +1,12 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -26,12 +29,12 @@ func NewTaskController(taskService usecase.TaskService) *TaskController {
 
 // TaskRequest はタスク作成/更新リクエスト
 type TaskRequest struct {
-	Title       string     `json:"title" binding:"omitempty,min=1"`
-	Description string     `json:"description"`
-	Status      string     `json:"status" binding:"omitempty,oneof=TODO IN_PROGRESS DONE"`
-	Priority    string     `json:"priority" binding:"omitempty,oneof=LOW MEDIUM HIGH"`
-	AssigneeID  *string    `json:"assignee_id"`
-	DueDate     *time.Time `json:"due_date"`
+	Title       string        `json:"title" binding:"omitempty,min=1"`
+	Description string        `json:"description"`
+	Status      string        `json:"status" binding:"omitempty,oneof=TODO IN_PROGRESS DONE"`
+	Priority    string        `json:"priority" binding:"omitempty,oneof=LOW MEDIUM HIGH"`
+	AssigneeID  *string       `json:"assignee_id"`
+	DueDate     *FlexibleTime `json:"due_date"`
 }
 
 // TaskResponse はタスクレスポンス
@@ -47,6 +50,41 @@ type TaskResponse struct {
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 	IsOverdue   bool       `json:"is_overdue"`
+}
+
+// FlexibleTime は複数の日付フォーマットに対応するカスタム型
+type FlexibleTime struct {
+	time.Time
+}
+
+// UnmarshalJSON は JSON からの柔軟な日付パース
+func (ft *FlexibleTime) UnmarshalJSON(data []byte) error {
+	str := strings.Trim(string(data), "\"")
+	if str == "null" || str == "" {
+		return nil
+	}
+
+	// 対応フォーマット一覧
+	formats := []string{
+		time.RFC3339,          // "2024-12-01T15:30:00Z"
+		"2006-01-02T15:04:05", // "2024-12-01T15:30:00"
+		"2006-01-02 15:04:05", // "2024-12-01 15:30:00"
+		"2006-01-02",          // "2024-12-01" ← これで対応！
+	}
+
+	for _, format := range formats {
+		if t, err := time.Parse(format, str); err == nil {
+			ft.Time = t
+			return nil
+		}
+	}
+
+	return fmt.Errorf("cannot parse '%s' as valid date format", str)
+}
+
+// MarshalJSON は JSON への出力
+func (ft FlexibleTime) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ft.Time.Format(time.RFC3339))
 }
 
 // AssignTaskRequest はタスク割り当てリクエスト
@@ -121,6 +159,7 @@ func (c *TaskController) CreateTask(ctx *gin.Context) {
 		priority = domain.Priority(req.Priority)
 	}
 
+	// タスク作成
 	task, err := c.taskService.CreateTaskWithDefaults(
 		ctx,
 		req.Title,
@@ -131,6 +170,22 @@ func (c *TaskController) CreateTask(ctx *gin.Context) {
 	if err != nil {
 		handleServiceError(ctx, err)
 		return
+	}
+
+	if req.DueDate != nil && !req.DueDate.Time.IsZero() {
+		dueDate := req.DueDate.Time
+		_, err = c.taskService.UpdateTask(
+			ctx,
+			task.ID,
+			nil, nil, nil, nil, // title, description, status, priority は nil
+			&dueDate,
+		)
+		if err != nil {
+			handleServiceError(ctx, err)
+			return
+		}
+		// レスポンス用にタスクの期限日を更新
+		task.DueDate = &dueDate
 	}
 
 	ctx.JSON(http.StatusCreated, gin.H{
@@ -186,8 +241,9 @@ func (c *TaskController) UpdateTask(ctx *gin.Context) {
 		p := domain.Priority(req.Priority)
 		priority = &p
 	}
-	if req.DueDate != nil {
-		dueDate = req.DueDate
+
+	if req.DueDate != nil && !req.DueDate.Time.IsZero() {
+		dueDate = &req.DueDate.Time
 	}
 
 	task, err := c.taskService.UpdateTask(
@@ -426,16 +482,17 @@ func parseListFilter(ctx *gin.Context) domain.ListFilter {
 		filter.CreatedBy = &createdBy
 	}
 
-	// 日付フィルタの処理
 	if dueDateFromStr := ctx.Query("due_date_from"); dueDateFromStr != "" {
-		if dueDateFrom, err := time.Parse(time.RFC3339, dueDateFromStr); err == nil {
-			filter.DueDateFrom = &dueDateFrom
+		ft := &FlexibleTime{}
+		if err := ft.UnmarshalJSON([]byte(`"` + dueDateFromStr + `"`)); err == nil {
+			filter.DueDateFrom = &ft.Time
 		}
 	}
 
 	if dueDateToStr := ctx.Query("due_date_to"); dueDateToStr != "" {
-		if dueDateTo, err := time.Parse(time.RFC3339, dueDateToStr); err == nil {
-			filter.DueDateTo = &dueDateTo
+		ft := &FlexibleTime{}
+		if err := ft.UnmarshalJSON([]byte(`"` + dueDateToStr + `"`)); err == nil {
+			filter.DueDateTo = &ft.Time
 		}
 	}
 
