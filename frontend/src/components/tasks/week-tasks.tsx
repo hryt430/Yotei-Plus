@@ -1,12 +1,12 @@
 "use client"
 
-import type { Task } from "@/types/task"
-import { TaskItem } from "@/components/task-item"
+import type { Task, TaskStatus } from "@/types"
+import { TaskItem } from "@/components/tasks/task-item"
 
 interface WeekTasksProps {
   tasks: Task[]
   onUpdateTaskDate: (taskId: string, newDate: Date) => void
-  onUpdateTaskStatus: (taskId: string, status: "pending" | "completed" | "in-progress") => void
+  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => void
 }
 
 export function WeekTasks({ tasks, onUpdateTaskDate, onUpdateTaskStatus }: WeekTasksProps) {
@@ -17,16 +17,21 @@ export function WeekTasks({ tasks, onUpdateTaskDate, onUpdateTaskStatus }: WeekT
 
   const weekTasks = tasks
     .filter((task) => {
-      const taskDate = new Date(task.dueDate)
+      if (!task.due_date) return false
+      const taskDate = new Date(task.due_date)
       return taskDate >= oneWeekAgo
     })
     .sort((a, b) => {
-      // Sort by status (pending first), then by due date (most recent first)
+      // Sort by status (TODO first), then by due date (most recent first)
       if (a.status !== b.status) {
-        if (a.status === "pending") return -1
-        if (b.status === "pending") return 1
+        if (a.status === "TODO") return -1
+        if (b.status === "TODO") return 1
       }
-      return b.dueDate.getTime() - a.dueDate.getTime()
+      
+      // Handle due_date comparison with null checks
+      const aDate = a.due_date ? new Date(a.due_date).getTime() : 0
+      const bDate = b.due_date ? new Date(b.due_date).getTime() : 0
+      return bDate - aDate
     })
 
   return (

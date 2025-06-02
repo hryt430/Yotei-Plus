@@ -1,8 +1,8 @@
 "use client"
 
-import type { Task } from "@/types/task"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import type { Task } from "@/types"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/data-display/card"
+import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/data-display/chart"
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis } from "recharts"
 import { CheckCircle, Clock, TrendingUp } from "lucide-react"
 
@@ -13,9 +13,9 @@ interface TaskStatsChartProps {
 export function TaskStatsChart({ tasks }: TaskStatsChartProps) {
   // Calculate statistics
   const totalTasks = tasks.length
-  const completedTasks = tasks.filter((task) => task.status === "completed").length
-  const pendingTasks = tasks.filter((task) => task.status === "pending").length
-  const inProgressTasks = tasks.filter((task) => task.status === "in-progress").length
+  const completedTasks = tasks.filter((task) => task.status === "DONE").length
+  const todoTasks = tasks.filter((task) => task.status === "TODO").length
+  const inProgressTasks = tasks.filter((task) => task.status === "IN_PROGRESS").length
 
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
@@ -32,8 +32,8 @@ export function TaskStatsChart({ tasks }: TaskStatsChartProps) {
       color: "#f59e0b",
     },
     {
-      name: "Pending",
-      value: pendingTasks,
+      name: "Todo",
+      value: todoTasks,
       color: "#ef4444",
     },
   ]
@@ -42,22 +42,23 @@ export function TaskStatsChart({ tasks }: TaskStatsChartProps) {
   const priorityData = [
     {
       priority: "High",
-      count: tasks.filter((task) => task.priority === "high").length,
+      count: tasks.filter((task) => task.priority === "HIGH").length,
     },
     {
       priority: "Medium",
-      count: tasks.filter((task) => task.priority === "medium").length,
+      count: tasks.filter((task) => task.priority === "MEDIUM").length,
     },
     {
       priority: "Low",
-      count: tasks.filter((task) => task.priority === "low").length,
+      count: tasks.filter((task) => task.priority === "LOW").length,
     },
   ]
 
   // Category distribution
   const categoryData = tasks.reduce(
     (acc, task) => {
-      acc[task.category] = (acc[task.category] || 0) + 1
+      const categoryLabel = getCategoryLabel(task.category)
+      acc[categoryLabel] = (acc[categoryLabel] || 0) + 1
       return acc
     },
     {} as Record<string, number>,
@@ -77,11 +78,48 @@ export function TaskStatsChart({ tasks }: TaskStatsChartProps) {
       label: "In Progress",
       color: "#f59e0b",
     },
-    pending: {
-      label: "Pending",
+    todo: {
+      label: "Todo",
       color: "#ef4444",
     },
   } satisfies ChartConfig
+
+  // Helper function to get category label
+  function getCategoryLabel(category: string): string {
+    switch (category) {
+      case "WORK":
+        return "Work"
+      case "PERSONAL":
+        return "Personal"
+      case "STUDY":
+        return "Study"
+      case "HEALTH":
+        return "Health"
+      case "SHOPPING":
+        return "Shopping"
+      case "OTHER":
+        return "Other"
+      default:
+        return category
+    }
+  }
+
+  // Calculate overdue tasks
+  const overdueTasks = tasks.filter((task) => {
+    if (!task.due_date || task.status === "DONE") return false
+    const taskDate = new Date(task.due_date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return taskDate < today
+  }).length
+
+  // Calculate tasks due today
+  const tasksDueToday = tasks.filter((task) => {
+    if (!task.due_date) return false
+    const taskDate = new Date(task.due_date)
+    const today = new Date()
+    return taskDate.toDateString() === today.toDateString()
+  }).length
 
   return (
     <div className="h-full overflow-y-auto p-6 space-y-6">
@@ -109,7 +147,7 @@ export function TaskStatsChart({ tasks }: TaskStatsChartProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalTasks}</div>
-            <p className="text-xs text-gray-600">{pendingTasks + inProgressTasks} remaining</p>
+            <p className="text-xs text-gray-600">{todoTasks + inProgressTasks} remaining</p>
           </CardContent>
         </Card>
       </div>
@@ -212,19 +250,15 @@ export function TaskStatsChart({ tasks }: TaskStatsChartProps) {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Overdue tasks:</span>
-              <span className="font-medium">
-                {tasks.filter((task) => task.dueDate < new Date() && task.status !== "completed").length}
-              </span>
+              <span className="font-medium">{overdueTasks}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Due today:</span>
-              <span className="font-medium">
-                {tasks.filter((task) => task.dueDate.toDateString() === new Date().toDateString()).length}
-              </span>
+              <span className="font-medium">{tasksDueToday}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">High priority:</span>
-              <span className="font-medium">{tasks.filter((task) => task.priority === "high").length}</span>
+              <span className="font-medium">{tasks.filter((task) => task.priority === "HIGH").length}</span>
             </div>
           </div>
         </CardContent>

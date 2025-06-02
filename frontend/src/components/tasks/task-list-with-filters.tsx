@@ -1,24 +1,24 @@
 "use client"
 
 import { useState } from "react"
-import type { Task } from "@/types/task"
-import { TaskItem } from "@/components/task-item"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
+import type { Task, TaskStatus, TaskPriority } from "@/types"
+import { TaskItem } from "@/components/tasks/task-item"
+import { Input } from "@/components/ui/forms/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/forms/select"
+import { Button } from "@/components/ui/forms/button"
 import { Search, Filter, SortAsc, RotateCcw } from "lucide-react"
 
 interface TaskListWithFiltersProps {
   tasks: Task[]
   onUpdateTaskDate: (taskId: string, newDate: Date) => void
-  onUpdateTaskStatus: (taskId: string, status: "pending" | "completed" | "in-progress") => void
+  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => void
 }
 
 export function TaskListWithFilters({ tasks, onUpdateTaskDate, onUpdateTaskStatus }: TaskListWithFiltersProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [sortBy, setSortBy] = useState<"date" | "priority" | "status" | "category">("date")
-  const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "completed" | "in-progress">("all")
-  const [filterPriority, setFilterPriority] = useState<"all" | "low" | "medium" | "high">("all")
+  const [filterStatus, setFilterStatus] = useState<"all" | TaskStatus>("all")
+  const [filterPriority, setFilterPriority] = useState<"all" | TaskPriority>("all")
 
   const filteredTasks = tasks
     .filter((task) => {
@@ -35,7 +35,7 @@ export function TaskListWithFilters({ tasks, onUpdateTaskDate, onUpdateTaskStatu
     .sort((a, b) => {
       switch (sortBy) {
         case "priority":
-          const priorityOrder = { high: 3, medium: 2, low: 1 }
+          const priorityOrder = { HIGH: 3, MEDIUM: 2, LOW: 1 }
           return priorityOrder[b.priority] - priorityOrder[a.priority]
         case "status":
           return a.status.localeCompare(b.status)
@@ -43,7 +43,10 @@ export function TaskListWithFilters({ tasks, onUpdateTaskDate, onUpdateTaskStatu
           return a.category.localeCompare(b.category)
         case "date":
         default:
-          return b.dueDate.getTime() - a.dueDate.getTime()
+          // Handle due_date comparison with null checks
+          const aDate = a.due_date ? new Date(a.due_date).getTime() : 0
+          const bDate = b.due_date ? new Date(b.due_date).getTime() : 0
+          return bDate - aDate
       }
     })
 
@@ -81,7 +84,7 @@ export function TaskListWithFilters({ tasks, onUpdateTaskDate, onUpdateTaskStatu
           {/* Compact Filters */}
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
+              <Select value={filterStatus} onValueChange={(value: "all" | TaskStatus) => setFilterStatus(value)}>
                 <SelectTrigger className="h-7 border-gray-200 text-xs">
                   <div className="flex items-center">
                     <Filter className="w-3 h-3 mr-1" />
@@ -90,29 +93,29 @@ export function TaskListWithFilters({ tasks, onUpdateTaskDate, onUpdateTaskStatu
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="TODO">Todo</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="DONE">Done</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Select value={filterPriority} onValueChange={(value: any) => setFilterPriority(value)}>
+              <Select value={filterPriority} onValueChange={(value: "all" | TaskPriority) => setFilterPriority(value)}>
                 <SelectTrigger className="h-7 border-gray-200 text-xs">
                   <SelectValue placeholder="Priority" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Priority</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="LOW">Low</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+              <Select value={sortBy} onValueChange={(value: "date" | "priority" | "status" | "category") => setSortBy(value)}>
                 <SelectTrigger className="h-7 border-gray-200 text-xs">
                   <div className="flex items-center">
                     <SortAsc className="w-3 h-3 mr-1" />

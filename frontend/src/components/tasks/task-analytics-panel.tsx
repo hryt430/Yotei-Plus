@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import type { Task } from "@/types/task"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import type { Task } from "@/types"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/data-display/card"
 import { Calendar, TrendingUp } from "lucide-react"
 
 interface TaskAnalyticsPanelProps {
@@ -20,27 +20,30 @@ export function TaskAnalyticsPanel({ tasks }: TaskAnalyticsPanelProps) {
   endOfToday.setHours(23, 59, 59, 999)
 
   const todayTasks = tasks.filter((task) => {
-    const taskDate = new Date(task.dueDate)
+    if (!task.due_date) return false
+    const taskDate = new Date(task.due_date)
     taskDate.setHours(0, 0, 0, 0)
     return taskDate.getTime() === today.getTime()
   })
 
-  const todayCompleted = todayTasks.filter((task) => task.status === "completed").length
+  const todayCompleted = todayTasks.filter((task) => task.status === "DONE").length
   const todayTotal = todayTasks.length
   const todayProgress = todayTotal > 0 ? (todayCompleted / todayTotal) * 100 : 0
 
   // Upcoming week tasks (next 7 days including today)
   const upcomingWeekTasks = tasks.filter((task) => {
-    const taskDate = new Date(task.dueDate)
+    if (!task.due_date) return false
+    const taskDate = new Date(task.due_date)
     const nextWeek = new Date()
     nextWeek.setDate(nextWeek.getDate() + 7)
     return taskDate >= today && taskDate <= nextWeek
   })
 
-  const weekCompleted = upcomingWeekTasks.filter((task) => task.status === "completed").length
+  const weekCompleted = upcomingWeekTasks.filter((task) => task.status === "DONE").length
   const weekOverdue = upcomingWeekTasks.filter((task) => {
-    const taskDate = new Date(task.dueDate)
-    return taskDate < today && task.status !== "completed"
+    if (!task.due_date) return false
+    const taskDate = new Date(task.due_date)
+    return taskDate < today && task.status !== "DONE"
   }).length
   const weekTotal = upcomingWeekTasks.length
   const weekProgress = weekTotal > 0 ? ((weekCompleted + weekOverdue) / weekTotal) * 100 : 0
@@ -53,12 +56,13 @@ export function TaskAnalyticsPanel({ tasks }: TaskAnalyticsPanelProps) {
     date.setHours(0, 0, 0, 0)
 
     const dayTasks = tasks.filter((task) => {
-      const taskDate = new Date(task.dueDate)
+      if (!task.due_date) return false
+      const taskDate = new Date(task.due_date)
       taskDate.setHours(0, 0, 0, 0)
       return taskDate.getTime() === date.getTime()
     })
 
-    const completed = dayTasks.filter((task) => task.status === "completed").length
+    const completed = dayTasks.filter((task) => task.status === "DONE").length
     const total = dayTasks.length
     const progressPercent = total > 0 ? (completed / total) * 100 : 0
 

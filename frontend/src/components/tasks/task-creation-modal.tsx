@@ -3,51 +3,53 @@
 import type React from "react"
 
 import { useState } from "react"
-import type { Task } from "@/types/task"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
+import type { Task, TaskStatus, TaskPriority, TaskCategory, TaskRequest } from "@/types"
+import { Button } from "@/components/ui/forms/button"
+import { Input } from "@/components/ui/forms/input"
+import { Textarea } from "@/components/ui/forms/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/forms/select"
+import { Label } from "@/components/ui/forms/label"
 import { X, Calendar, Flag, Tag } from "lucide-react"
 
 interface TaskCreationModalProps {
   isOpen: boolean
   onClose: () => void
-  onCreateTask: (task: Omit<Task, "id">) => void
+  onCreateTask: (task: TaskRequest) => void
 }
 
 export function TaskCreationModal({ isOpen, onClose, onCreateTask }: TaskCreationModalProps) {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    dueDate: new Date().toISOString().split("T")[0], // Today's date in YYYY-MM-DD format
-    priority: "medium" as "low" | "medium" | "high",
-    category: "",
-    status: "pending" as "pending" | "in-progress" | "completed",
+    due_date: new Date().toISOString().split("T")[0], // Today's date in YYYY-MM-DD format
+    priority: "MEDIUM" as TaskPriority,
+    category: "OTHER" as TaskCategory,
+    status: "TODO" as TaskStatus,
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.title.trim()) return
 
-    onCreateTask({
+    const taskRequest: TaskRequest = {
       title: formData.title.trim(),
       description: formData.description.trim(),
-      dueDate: new Date(formData.dueDate),
+      due_date: formData.due_date,
       priority: formData.priority,
-      category: formData.category.trim() || "General",
+      category: formData.category,
       status: formData.status,
-    })
+    }
+
+    onCreateTask(taskRequest)
 
     // Reset form
     setFormData({
       title: "",
       description: "",
-      dueDate: new Date().toISOString().split("T")[0],
-      priority: "medium",
-      category: "",
-      status: "pending",
+      due_date: new Date().toISOString().split("T")[0],
+      priority: "MEDIUM",
+      category: "OTHER",
+      status: "TODO",
     })
   }
 
@@ -57,10 +59,10 @@ export function TaskCreationModal({ isOpen, onClose, onCreateTask }: TaskCreatio
     setFormData({
       title: "",
       description: "",
-      dueDate: new Date().toISOString().split("T")[0],
-      priority: "medium",
-      category: "",
-      status: "pending",
+      due_date: new Date().toISOString().split("T")[0],
+      priority: "MEDIUM",
+      category: "OTHER",
+      status: "TODO",
     })
   }
 
@@ -115,15 +117,15 @@ export function TaskCreationModal({ isOpen, onClose, onCreateTask }: TaskCreatio
 
           {/* Due Date */}
           <div className="space-y-2">
-            <Label htmlFor="dueDate" className="text-sm font-medium text-gray-700 flex items-center">
+            <Label htmlFor="due_date" className="text-sm font-medium text-gray-700 flex items-center">
               <Calendar className="w-4 h-4 mr-2" />
               Due Date
             </Label>
             <Input
-              id="dueDate"
+              id="due_date"
               type="date"
-              value={formData.dueDate}
-              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+              value={formData.due_date}
+              onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
               className="border-gray-200 focus:border-gray-300 focus:ring-gray-300"
             />
           </div>
@@ -138,46 +140,58 @@ export function TaskCreationModal({ isOpen, onClose, onCreateTask }: TaskCreatio
               </Label>
               <Select
                 value={formData.priority}
-                onValueChange={(value: any) => setFormData({ ...formData, priority: value })}
+                onValueChange={(value: TaskPriority) => setFormData({ ...formData, priority: value })}
               >
                 <SelectTrigger className="border-gray-200">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Category */}
             <div className="space-y-2">
-              <Label htmlFor="category" className="text-sm font-medium text-gray-700 flex items-center">
+              <Label className="text-sm font-medium text-gray-700 flex items-center">
                 <Tag className="w-4 h-4 mr-2" />
                 Category
               </Label>
-              <Input
-                id="category"
+              <Select
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                placeholder="e.g., Work, Personal"
-                className="border-gray-200 focus:border-gray-300 focus:ring-gray-300"
-              />
+                onValueChange={(value: TaskCategory) => setFormData({ ...formData, category: value })}
+              >
+                <SelectTrigger className="border-gray-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="WORK">Work</SelectItem>
+                  <SelectItem value="PERSONAL">Personal</SelectItem>
+                  <SelectItem value="STUDY">Study</SelectItem>
+                  <SelectItem value="HEALTH">Health</SelectItem>
+                  <SelectItem value="SHOPPING">Shopping</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {/* Status */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-gray-700">Status</Label>
-            <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
+            <Select 
+              value={formData.status} 
+              onValueChange={(value: TaskStatus) => setFormData({ ...formData, status: value })}
+            >
               <SelectTrigger className="border-gray-200">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="TODO">Todo</SelectItem>
+                <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                <SelectItem value="DONE">Done</SelectItem>
               </SelectContent>
             </Select>
           </div>

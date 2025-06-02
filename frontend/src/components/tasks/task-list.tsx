@@ -1,13 +1,13 @@
 "use client"
 
-import type { Task } from "@/types/task"
-import { TodayTasks } from "@/components/today-tasks"
-import { WeekTasks } from "@/components/week-tasks"
+import type { Task, TaskStatus } from "@/types"
+import { TodayTasks } from "@/components/tasks/today-tasks"
+import { WeekTasks } from "@/components/tasks/week-tasks"
 
 interface TaskListProps {
   tasks: Task[]
   onUpdateTaskDate: (taskId: string, newDate: Date) => void
-  onUpdateTaskStatus: (taskId: string, status: "pending" | "completed" | "in-progress") => void
+  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => void
   onCreateTask: () => void
 }
 

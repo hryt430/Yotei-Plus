@@ -1,14 +1,14 @@
 "use client"
 
-import type { Task } from "@/types/task"
-import { TaskItem } from "@/components/task-item"
-import { Button } from "@/components/ui/button"
+import type { Task, TaskStatus } from "@/types"
+import { TaskItem } from "@/components/tasks/task-item"
+import { Button } from "@/components/ui/forms/button"
 import { Plus } from "lucide-react"
 
 interface TodayTasksProps {
   tasks: Task[]
   onUpdateTaskDate: (taskId: string, newDate: Date) => void
-  onUpdateTaskStatus: (taskId: string, status: "pending" | "completed" | "in-progress") => void
+  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => void
   onCreateTask: () => void
 }
 
@@ -18,14 +18,22 @@ export function TodayTasks({ tasks, onUpdateTaskDate, onUpdateTaskStatus, onCrea
   today.setHours(23, 59, 59, 999) // End of today
 
   const todayTasks = tasks
-    .filter((task) => task.dueDate <= today)
+    .filter((task) => {
+      if (!task.due_date) return false
+      const taskDueDate = new Date(task.due_date)
+      return taskDueDate <= today
+    })
     .sort((a, b) => {
-      // Sort by status (pending first), then by due date (most recent first)
+      // Sort by status (TODO first), then by due date (most recent first)
       if (a.status !== b.status) {
-        if (a.status === "pending") return -1
-        if (b.status === "pending") return 1
+        if (a.status === "TODO") return -1
+        if (b.status === "TODO") return 1
       }
-      return b.dueDate.getTime() - a.dueDate.getTime()
+      
+      // Handle due_date comparison with null checks
+      const aDate = a.due_date ? new Date(a.due_date).getTime() : 0
+      const bDate = b.due_date ? new Date(b.due_date).getTime() : 0
+      return bDate - aDate
     })
 
   return (
