@@ -12,7 +12,7 @@ import Link from "next/link"
 import { useAuth } from "@/providers/auth-provider"
 import { isValidEmail, isValidPassword, isValidUsername } from "@/lib/utils"
 
-export default function RegisterForm() {
+export  function RegisterForm() {
   const { register, isLoading, error, clearError } = useAuth()
   
   const [showPassword, setShowPassword] = useState(false)

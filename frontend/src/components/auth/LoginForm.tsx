@@ -12,7 +12,7 @@ import Link from "next/link"
 import { useAuth } from "@/providers/auth-provider"
 import { isValidEmail } from "@/lib/utils"
 
-export default function LoginForm() {
+export  function LoginForm() {
   const { login, isLoading, error, clearError } = useAuth()
   
   const [showPassword, setShowPassword] = useState(false)
