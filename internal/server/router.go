@@ -107,7 +107,7 @@ func setupWebSocketRoutes(router *gin.Engine, deps *Dependencies) {
 	// WebSocketエンドポイント
 	wsGroup := router.Group("/ws")
 	{
-		// ✅ WebSocket用の認証ミドルウェアを追加
+		// WebSocket用の認証ミドルウェアを追加
 		wsGroup.GET("/notifications",
 			authMw.WebSocketAuthRequired(), // ← 新しく追加する認証ミドルウェア
 			websocket.ServeWs(deps.WSHub, deps.Logger))
