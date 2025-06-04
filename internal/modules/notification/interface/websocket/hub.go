@@ -9,7 +9,7 @@ import (
 	"github.com/hryt430/Yotei+/pkg/logger"
 )
 
-// Hub はWebSocketクライアントを管理するハブ（ロガー追加版）
+// Hub はWebSocketクライアントを管理するハブ
 type Hub struct {
 	// クライアントマップ（キー：ユーザーID）
 	clients   map[string]map[*Client]bool
@@ -28,7 +28,7 @@ type Hub struct {
 	logger logger.Logger
 }
 
-// NewHub はWebSocketハブを作成する（ロガー追加版）
+// NewHub はWebSocketハブを作成する
 func NewHub(logger logger.Logger) *Hub {
 	return &Hub{
 		clients:    make(map[string]map[*Client]bool),
@@ -39,7 +39,7 @@ func NewHub(logger logger.Logger) *Hub {
 	}
 }
 
-// Run はWebSocketハブを起動する（context対応版）
+// Run はWebSocketハブを起動する
 func (h *Hub) Run(ctx context.Context) error {
 	h.logger.Info("Starting WebSocket hub")
 
@@ -153,7 +153,7 @@ func (h *Hub) cleanup() {
 		logger.Any("closedClients", totalClients))
 }
 
-// SendNotification は指定ユーザーに通知を送信する（ロガー追加版）
+// SendNotification は指定ユーザーに通知を送信する
 func (h *Hub) SendNotification(notification *domain.Notification) {
 	h.logger.Debug("Queueing notification for broadcast",
 		logger.Any("notificationID", notification.ID),
