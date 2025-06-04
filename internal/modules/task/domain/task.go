@@ -48,7 +48,7 @@ type Task struct {
 	AssigneeID  *string    `json:"assignee_id,omitempty"`
 	CreatedBy   string     `json:"created_by"`
 	DueDate     *time.Time `json:"due_date,omitempty"`
-	IsOverdue   bool       `json:"is_overdue"` // ✅ フィールドとして追加
+	IsOverdue   bool       `json:"is_overdue"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
@@ -90,7 +90,6 @@ func NewTask(title, description string, priority Priority, category Category, cr
 		UpdatedAt:   now,
 	}
 
-	// ✅ IsOverdueフィールドを初期化
 	task.UpdateIsOverdue()
 
 	return task
@@ -105,28 +104,28 @@ func NewTaskWithDefaults(title, description string, priority Priority, createdBy
 func (t *Task) AssignTo(userID string) {
 	t.AssigneeID = &userID
 	t.UpdatedAt = time.Now()
-	t.UpdateIsOverdue() // ✅ 更新時にIsOverdueも更新
+	t.UpdateIsOverdue()
 }
 
 // SetStatus はタスクのステータスを設定する
 func (t *Task) SetStatus(status TaskStatus) {
 	t.Status = status
 	t.UpdatedAt = time.Now()
-	t.UpdateIsOverdue() // ✅ ステータス変更時にIsOverdueも更新
+	t.UpdateIsOverdue()
 }
 
 // SetDueDate はタスクの期限を設定する
 func (t *Task) SetDueDate(date time.Time) {
 	t.DueDate = &date
 	t.UpdatedAt = time.Now()
-	t.UpdateIsOverdue() // ✅ 期限変更時にIsOverdueも更新
+	t.UpdateIsOverdue()
 }
 
 // SetCategory はタスクのカテゴリを設定する
 func (t *Task) SetCategory(category Category) {
 	t.Category = category
 	t.UpdatedAt = time.Now()
-	t.UpdateIsOverdue() // ✅ カテゴリ変更時にIsOverdueも更新
+	t.UpdateIsOverdue()
 }
 
 // IsOverdue はタスクが期限切れかどうかを判定する（メソッド版も維持）
@@ -134,12 +133,12 @@ func (t *Task) CheckIsOverdue() bool {
 	return t.DueDate != nil && t.Status != TaskStatusDone && time.Now().After(*t.DueDate)
 }
 
-// ✅ UpdateIsOverdue はIsOverdueフィールドを最新の状態に更新する
+// UpdateIsOverdue はIsOverdueフィールドを最新の状態に更新する
 func (t *Task) UpdateIsOverdue() {
 	t.IsOverdue = t.CheckIsOverdue()
 }
 
-// ✅ PrepareForResponse はレスポンス送信前にフィールドを最新状態に更新する
+// PrepareForResponse はレスポンス送信前にフィールドを最新状態に更新する
 func (t *Task) PrepareForResponse() {
 	t.UpdateIsOverdue()
 }
@@ -222,7 +221,7 @@ func GetAllStatuses() []TaskStatus {
 	}
 }
 
-// ✅ TaskSliceHelper はタスクスライス用のヘルパーメソッド
+// TaskSliceHelper はタスクスライス用のヘルパーメソッド
 type TaskSliceHelper []*Task
 
 // UpdateAllIsOverdue はスライス内の全タスクのIsOverdueフィールドを更新
@@ -239,13 +238,13 @@ func (tasks TaskSliceHelper) PrepareAllForResponse() {
 	}
 }
 
-// ✅ タスクリストをレスポンス用に準備するヘルパー関数
+// タスクリストをレスポンス用に準備するヘルパー関数
 func PrepareTasksForResponse(tasks []*Task) {
 	helper := TaskSliceHelper(tasks)
 	helper.PrepareAllForResponse()
 }
 
-// ✅ 単一タスクをレスポンス用に準備するヘルパー関数
+// 単一タスクをレスポンス用に準備するヘルパー関数
 func PrepareTaskForResponse(task *Task) {
 	if task != nil {
 		task.PrepareForResponse()
