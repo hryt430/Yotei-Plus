@@ -20,8 +20,8 @@ type User struct {
 	Password      string         `json:"-"` // パスワードはJSONに含めない
 	Role          string         `json:"role"`
 	EmailVerified bool           `json:"email_verified"`
-	LastLogin     *time.Time     `json:"last_login"` // ✅ ポインタ型に変更（NULL許可）
-	RefreshTokens []RefreshToken `json:"-"`          // ✅ GORMタグ削除
+	LastLogin     *time.Time     `json:"last_login"`
+	RefreshTokens []RefreshToken `json:"-"`
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 }
@@ -34,11 +34,11 @@ func NewUser(email, username, password string) *User {
 		Email:         email,
 		Username:      username,
 		Password:      password,
-		Role:          RoleUser, // ✅ デフォルト値を明示的に設定
+		Role:          RoleUser,
 		EmailVerified: false,
-		LastLogin:     nil, // ✅ NULLを明示的に設定
-		CreatedAt:     now, // ✅ 現在時刻を設定
-		UpdatedAt:     now, // ✅ 現在時刻を設定
+		LastLogin:     nil,
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 }
 
@@ -48,7 +48,7 @@ func (u *User) SetRole(role string) error {
 		return fmt.Errorf("invalid role: %s", role)
 	}
 	u.Role = role
-	u.UpdatedAt = time.Now() // ✅ 更新時刻を設定
+	u.UpdatedAt = time.Now()
 	return nil
 }
 

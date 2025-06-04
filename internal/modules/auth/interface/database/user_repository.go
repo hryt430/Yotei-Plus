@@ -14,7 +14,7 @@ type IUserRepository struct {
 	SqlHandler
 }
 
-// UserExists はユーザーが存在するかチェック（軽量版）
+// UserExists はユーザーが存在するかチェック
 func (r *IUserRepository) UserExists(userID string) (bool, error) {
 	query := `SELECT 1 FROM ` + "`Yotei-Plus`" + `.users WHERE id = ? LIMIT 1`
 
@@ -32,7 +32,7 @@ func (r *IUserRepository) UserExists(userID string) (bool, error) {
 	return row.Next(), nil
 }
 
-// GetUserBasicInfo はユーザーの基本情報のみ取得（軽量版）
+// GetUserBasicInfo はユーザーの基本情報のみ取得
 func (r *IUserRepository) GetUserBasicInfo(userID string) (*UserBasicInfo, error) {
 	query := `SELECT id, username, email FROM ` + "`Yotei-Plus`" + `.users WHERE id = ? LIMIT 1`
 
