@@ -11,7 +11,7 @@ import (
 	"github.com/hryt430/Yotei+/pkg/logger"
 )
 
-// TaskDueNotificationScheduler はタスク期限通知のスケジューラー（改良版）
+// TaskDueNotificationScheduler はタスク期限通知のスケジューラー
 type TaskDueNotificationScheduler struct {
 	taskService         usecase.TaskService
 	notificationService NotificationService
