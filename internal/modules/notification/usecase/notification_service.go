@@ -28,7 +28,7 @@ type notificationUseCase struct {
 	logger        logger.Logger
 }
 
-// NewNotificationUseCase は通知ユースケースのインスタンスを作成する（修正版）
+// NewNotificationUseCase は通知ユースケースのインスタンスを作成する
 func NewNotificationUseCase(
 	repository persistence.NotificationRepository,
 	appGateway output.AppNotificationGateway,
@@ -45,7 +45,7 @@ func NewNotificationUseCase(
 	}
 }
 
-// CreateNotification は新しい通知を作成する（修正版）
+// CreateNotification は新しい通知を作成する
 func (uc *notificationUseCase) CreateNotification(ctx context.Context, input input.CreateNotificationInput) (*domain.Notification, error) {
 	// 入力バリデーション
 	if err := uc.validateCreateInput(input); err != nil {
