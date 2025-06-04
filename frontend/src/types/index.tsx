@@ -21,11 +21,11 @@ export interface Task {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
-  category: TaskCategory; // ✅ 型安全なcategory追加
+  category: TaskCategory;
   assignee_id?: string;
   created_by: string;
   due_date?: string;
-  is_overdue?: boolean; // ✅ バックエンドで計算されるフィールド
+  is_overdue?: boolean; 
   created_at: string;
   updated_at: string;
 }
@@ -35,7 +35,7 @@ export interface TaskRequest {
   description?: string;
   status?: TaskStatus;
   priority?: TaskPriority;
-  category?: TaskCategory; // ✅ category追加
+  category?: TaskCategory;
   assignee_id?: string;
   due_date?: string;
 }
@@ -56,7 +56,7 @@ export interface Notification {
   type: NotificationType;
   title: string;
   message: string;
-  status: NotificationStatus; // ✅ is_readフィールド削除、statusのみで判定
+  status: NotificationStatus; 
   metadata?: Record<string, string>;
   created_at: string;
   updated_at: string;
@@ -242,7 +242,7 @@ export interface TaskDisplayData extends Omit<Task, 'assignee_id' | 'created_by'
   dueDateLabel?: string;
   priorityLabel: string;
   statusLabel: string;
-  categoryLabel: string; // ✅ category表示名
+  categoryLabel: string; 
 }
 
 // === Form Types ===
@@ -251,7 +251,7 @@ export interface TaskFormData {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
-  category: TaskCategory; // ✅ category追加
+  category: TaskCategory; 
   assignee_id?: string;
   due_date?: string;
 }

@@ -1,7 +1,6 @@
-// Re-export the toast functionality from the components/ui
 export { useToast, toast } from '@/components/ui/hooks/use-toast'
 
-// Helper functions for commonly used toast types
+// トーストに使うヘルパー関数
 export const success = (description: string, title: string = "成功") => {
   const { toast } = require('@/components/ui/hooks/use-toast')
   return toast({
