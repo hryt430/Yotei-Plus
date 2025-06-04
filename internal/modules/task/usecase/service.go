@@ -453,7 +453,7 @@ func (s *TaskService) ChangeTaskStatus(ctx context.Context, taskID string, statu
 	return task, nil
 }
 
-// === その他のメソッド（元のまま） ===
+// === その他のメソッド ===
 
 // GetOverdueTasks は期限切れのタスクを取得する
 func (s *TaskService) GetOverdueTasks(ctx context.Context) ([]*domain.Task, error) {
