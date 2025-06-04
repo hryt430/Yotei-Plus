@@ -2,7 +2,7 @@ import { ApiResponse, ErrorResponse } from '@/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
-// ✅ リクエスト情報を保持するインターフェース
+// リクエスト情報を保持するインターフェース
 interface RequestInfo {
   url: string
   method: string
@@ -91,7 +91,7 @@ class ApiClient {
       return config
     })
 
-    // ✅ レスポンスインターセプター: 修正版
+    // レスポンスインターセプター
     this.addResponseInterceptor(async (response) => {
       if (response.status === 401 && !response.url.includes('/auth/login')) {
         
@@ -103,7 +103,7 @@ class ApiClient {
             this.isRefreshing = false
             this.onTokenRefreshed(newToken)
             
-            // ✅ 401エラーの場合は、呼び出し元で再試行する必要があることを示す特別なエラーを投げる
+            // 401エラーの場合は、呼び出し元で再試行する必要があることを示す特別なエラーを投げる
             throw new ApiError('Token refreshed, retry needed', 401, 'TOKEN_REFRESHED', { newToken })
           } catch (refreshError) {
             this.isRefreshing = false
@@ -221,7 +221,7 @@ class ApiClient {
     return new ApiError(message, response.status, undefined, data)
   }
 
-  // ✅ 基本リクエストメソッド: 自動リトライ機能付き
+  // 基本リクエストメソッド: 自動リトライ機能付き
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
@@ -265,7 +265,7 @@ class ApiClient {
 
       return data as T
     } catch (error) {
-      // ✅ TOKEN_REFRESHED エラーの場合は自動リトライ
+      // TOKEN_REFRESHED エラーの場合は自動リトライ
       if (error instanceof ApiError && 
           error.code === 'TOKEN_REFRESHED' && 
           retryCount < 1) {

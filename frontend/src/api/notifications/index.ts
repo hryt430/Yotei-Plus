@@ -15,8 +15,8 @@ export interface CreateNotificationInput {
 export interface GetNotificationsParams {
   limit?: number
   offset?: number
-  status?: NotificationStatus // ✅ is_readではなくstatusで統一
-  unread_only?: boolean // ✅ 未読のみ取得のフラグ
+  status?: NotificationStatus 
+  unread_only?: boolean 
   type?: NotificationType
   created_after?: string
   created_before?: string

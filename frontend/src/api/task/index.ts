@@ -47,7 +47,7 @@ export async function getTasks(params?: GetTasksParams): Promise<TaskListRespons
     if (params.sort_direction) queryParams.sort_direction = params.sort_direction
     if (params.status) queryParams.status = params.status
     if (params.priority) queryParams.priority = params.priority
-    if (params.category) queryParams.category = params.category // ✅ category追加
+    if (params.category) queryParams.category = params.category 
     if (params.assignee_id) queryParams.assignee_id = params.assignee_id
     if (params.created_by) queryParams.created_by = params.created_by
     if (params.due_date_from) queryParams.due_date_from = params.due_date_from
