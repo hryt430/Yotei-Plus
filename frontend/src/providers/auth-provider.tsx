@@ -131,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         // ダッシュボードにリダイレクト
-        router.push('/dashboard')
+        router.push('/home')
       }
     } catch (error) {
       const errorMessage = handleApiError(error)
@@ -176,7 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         // ダッシュボードにリダイレクト
-        router.push('/dashboard')
+        router.push('/home')
       }
     } catch (error) {
       const errorMessage = handleApiError(error)
@@ -347,7 +347,7 @@ export function withAdminAuth<P extends object>(
         if (!isAuthenticated) {
           router.push('/auth/login')
         } else if (user?.role !== 'admin') {
-          router.push('/dashboard') // 管理者でない場合はダッシュボードへ
+          router.push('/home') // 管理者でない場合はホームへ
         }
       }
     }, [isAuthenticated, isLoading, user, router])

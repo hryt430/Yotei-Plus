@@ -49,8 +49,6 @@ function TaskManagementContent() {
   const router = useRouter()
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
 
-  // const { notifications, markAsRead, markAllAsRead, deleteNotification, handleFriendAction, addNotification } =
-  //   useNotifications()
    const { addNotification } = useNotifications()
 
   // 認証チェック

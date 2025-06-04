@@ -52,8 +52,8 @@ export default function useAuth() {
         isLoading: false,
       });
       
-      // ダッシュボードへリダイレクト
-      router.push('/dashboard');
+      // ホームへリダイレクト
+      router.push('/home');
       
     } catch (error) {
       setAuthState(prev => ({ ...prev, isLoading: false }));
@@ -90,7 +90,7 @@ export default function useAuth() {
       });
       
       // ダッシュボードへリダイレクト
-      router.push('/dashboard');
+      router.push('/home');
       
     } catch (error) {
       setAuthState(prev => ({ ...prev, isLoading: false }));
