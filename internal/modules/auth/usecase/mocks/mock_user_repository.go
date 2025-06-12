@@ -2,7 +2,7 @@
 // Source: user/repository.go
 
 // Package mock_userService is a generated GoMock package.
-package mock_userService
+package mock_Service
 
 import (
 	reflect "reflect"

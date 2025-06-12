@@ -2,7 +2,7 @@
 // Source: token/repository.go
 
 // Package mock_tokenService is a generated GoMock package.
-package mock_tokenService
+package mock_Service
 
 import (
 	reflect "reflect"
