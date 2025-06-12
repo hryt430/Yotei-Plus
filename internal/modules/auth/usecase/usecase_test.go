@@ -13,8 +13,8 @@ import (
 	"github.com/hryt430/Yotei+/internal/modules/auth/domain"
 )
 
-//go:generate mockgen -source=../user/repository.go -destination=mocks/mock_user_repository.go
-//go:generate mockgen -source=../token/repository.go -destination=mocks/mock_token_repository.go
+//go:generate mockgen -source=user/repository.go -destination=mocks/mock_user_repository.go
+//go:generate mockgen -source=token/repository.go -destination=mocks/mock_token_repository.go
 //go:generate mockgen -package=authService -destination=mocks/mock_services.go github.com/hryt430/Yotei+/internal/modules/auth/usecase/user UserService
 //go:generate mockgen -package=authService -destination=mocks/mock_token_service.go github.com/hryt430/Yotei+/internal/modules/auth/usecase/token TokenService
 
@@ -22,11 +22,11 @@ func TestAuthService_Register(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockUserService := NewMockUserService(ctrl)
-	mockTokenService := NewMockTokenService(ctrl)
-	mockAuthRepo := NewMockIAuthRepository(ctrl)
+	mockUserService := mocks.NewMockUserService(ctrl)
+	mockTokenService := mocks.NewMockTokenService(ctrl)
+	mockAuthRepo := mock.NewMockIAuthRepository(ctrl)
 
-	authService := NewAuthService(mockAuthRepo, mockUserService, mockTokenService)
+	authService := mock.NewAuthService(mockAuthRepo, mockUserService, mockTokenService)
 
 	tests := []struct {
 		name          string
@@ -128,11 +128,11 @@ func TestAuthService_Login(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockUserService := NewMockUserService(ctrl)
-	mockTokenService := NewMockTokenService(ctrl)
-	mockAuthRepo := NewMockIAuthRepository(ctrl)
+	mockUserService := mock.NewMockUserService(ctrl)
+	mockTokenService := mock.NewMockTokenService(ctrl)
+	mockAuthRepo := mock.NewMockIAuthRepository(ctrl)
 
-	authService := NewAuthService(mockAuthRepo, mockUserService, mockTokenService)
+	authService := mock.NewAuthService(mockAuthRepo, mockUserService, mockTokenService)
 
 	tests := []struct {
 		name          string
@@ -248,11 +248,11 @@ func TestAuthService_RefreshToken(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockUserService := NewMockUserService(ctrl)
-	mockTokenService := NewMockTokenService(ctrl)
-	mockAuthRepo := NewMockIAuthRepository(ctrl)
+	mockUserService := mock.NewMockUserService(ctrl)
+	mockTokenService := mock.NewMockTokenService(ctrl)
+	mockAuthRepo := mock.NewMockIAuthRepository(ctrl)
 
-	authService := NewAuthService(mockAuthRepo, mockUserService, mockTokenService)
+	authService := mock.NewAuthService(mockAuthRepo, mockUserService, mockTokenService)
 
 	tests := []struct {
 		name          string
@@ -402,11 +402,11 @@ func TestAuthService_Logout(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockUserService := NewMockUserService(ctrl)
-	mockTokenService := NewMockTokenService(ctrl)
-	mockAuthRepo := NewMockIAuthRepository(ctrl)
+	mockUserService := mock.NewMockUserService(ctrl)
+	mockTokenService := mock.NewMockTokenService(ctrl)
+	mockAuthRepo := mock.NewMockIAuthRepository(ctrl)
 
-	authService := NewAuthService(mockAuthRepo, mockUserService, mockTokenService)
+	authService := mock.NewAuthService(mockAuthRepo, mockUserService, mockTokenService)
 
 	tests := []struct {
 		name          string
@@ -494,11 +494,11 @@ func TestAuthService_FullAuthFlow(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockUserService := NewMockUserService(ctrl)
-	mockTokenService := NewMockTokenService(ctrl)
-	mockAuthRepo := NewMockIAuthRepository(ctrl)
+	mockUserService := mock.NewMockUserService(ctrl)
+	mockTokenService := mock.NewMockTokenService(ctrl)
+	mockAuthRepo := mock.NewMockIAuthRepository(ctrl)
 
-	authService := NewAuthService(mockAuthRepo, mockUserService, mockTokenService)
+	authService := mock.NewAuthService(mockAuthRepo, mockUserService, mockTokenService)
 
 	email := "integration@example.com"
 	username := "integrationuser"
