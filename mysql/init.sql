@@ -140,7 +140,121 @@ ON DUPLICATE KEY UPDATE title = VALUES(title);
 -- Note: Stored procedures removed as they may not work properly in init scripts
 -- You can add them later through your application or separate migration scripts
 
+-- Social module tables
+-- Friendships table for friend relationships
+CREATE TABLE IF NOT EXISTS `Yotei-Plus`.`friendships` (
+    id VARCHAR(36) PRIMARY KEY,
+    requester_id VARCHAR(36) NOT NULL,
+    addressee_id VARCHAR(36) NOT NULL,
+    status ENUM('PENDING', 'ACCEPTED', 'BLOCKED') DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    accepted_at TIMESTAMP NULL,
+    blocked_at TIMESTAMP NULL,
+    FOREIGN KEY (requester_id) REFERENCES `Yotei-Plus`.users(id) ON DELETE CASCADE,
+    FOREIGN KEY (addressee_id) REFERENCES `Yotei-Plus`.users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_friendship (requester_id, addressee_id),
+    INDEX idx_requester_id (requester_id),
+    INDEX idx_addressee_id (addressee_id),
+    INDEX idx_status (status),
+    INDEX idx_created_at (created_at)
+);
+
+-- Invitations table for invitation system
+CREATE TABLE IF NOT EXISTS `Yotei-Plus`.`invitations` (
+    id VARCHAR(36) PRIMARY KEY,
+    type ENUM('FRIEND', 'GROUP') NOT NULL,
+    method ENUM('IN_APP', 'CODE', 'URL') NOT NULL,
+    status ENUM('PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED', 'CANCELED') DEFAULT 'PENDING',
+    inviter_id VARCHAR(36) NOT NULL,
+    invitee_id VARCHAR(36) NULL,
+    invitee_email VARCHAR(255) NULL,
+    invitee_username VARCHAR(255) NULL,
+    invitee_phone VARCHAR(20) NULL,
+    target_id VARCHAR(36) NULL, -- group_id for group invitations
+    code VARCHAR(255) NULL,
+    url TEXT NULL,
+    message TEXT NULL,
+    metadata JSON NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    accepted_at TIMESTAMP NULL,
+    FOREIGN KEY (inviter_id) REFERENCES `Yotei-Plus`.users(id) ON DELETE CASCADE,
+    FOREIGN KEY (invitee_id) REFERENCES `Yotei-Plus`.users(id) ON DELETE CASCADE,
+    FOREIGN KEY (target_id) REFERENCES `Yotei-Plus`.groups(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_code (code),
+    INDEX idx_inviter_id (inviter_id),
+    INDEX idx_invitee_id (invitee_id),
+    INDEX idx_code (code),
+    INDEX idx_status (status),
+    INDEX idx_type (type),
+    INDEX idx_expires_at (expires_at),
+    INDEX idx_created_at (created_at)
+);
+
+-- Groups table
+CREATE TABLE IF NOT EXISTS `Yotei-Plus`.`groups` (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT NULL,
+    type ENUM('PROJECT', 'SCHEDULE') NOT NULL,
+    owner_id VARCHAR(36) NOT NULL,
+    member_count INT DEFAULT 1,
+    is_public BOOLEAN DEFAULT FALSE,
+    allow_member_invite BOOLEAN DEFAULT TRUE,
+    require_approval BOOLEAN DEFAULT TRUE,
+    enable_notifications BOOLEAN DEFAULT TRUE,
+    -- Schedule group settings
+    default_privacy_level ENUM('NONE', 'BUSY', 'TITLE', 'DETAILS') NULL,
+    allow_schedule_details BOOLEAN NULL,
+    -- Project group settings
+    enable_gantt_chart BOOLEAN NULL,
+    enable_task_dependency BOOLEAN NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    version INT DEFAULT 1,
+    FOREIGN KEY (owner_id) REFERENCES `Yotei-Plus`.users(id) ON DELETE CASCADE,
+    INDEX idx_owner_id (owner_id),
+    INDEX idx_type (type),
+    INDEX idx_is_public (is_public),
+    INDEX idx_created_at (created_at),
+    FULLTEXT idx_search (name, description)
+);
+
+-- Group members table
+CREATE TABLE IF NOT EXISTS `Yotei-Plus`.`group_members` (
+    id VARCHAR(36) PRIMARY KEY,
+    group_id VARCHAR(36) NOT NULL,
+    user_id VARCHAR(36) NOT NULL,
+    role ENUM('OWNER', 'ADMIN', 'MEMBER') DEFAULT 'MEMBER',
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (group_id) REFERENCES `Yotei-Plus`.groups(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES `Yotei-Plus`.users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_group_member (group_id, user_id),
+    INDEX idx_group_id (group_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_role (role),
+    INDEX idx_joined_at (joined_at)
+);
+
+-- Group tasks table (extending tasks with group context)
+CREATE TABLE IF NOT EXISTS `Yotei-Plus`.`group_tasks` (
+    id VARCHAR(36) PRIMARY KEY,
+    task_id VARCHAR(36) NOT NULL,
+    group_id VARCHAR(36) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (task_id) REFERENCES `Yotei-Plus`.tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES `Yotei-Plus`.groups(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_group_task (task_id, group_id),
+    INDEX idx_task_id (task_id),
+    INDEX idx_group_id (group_id)
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_tasks_compound ON `Yotei-Plus`.tasks (status, assignee_id, due_date);
 CREATE INDEX IF NOT EXISTS idx_notifications_compound ON `Yotei-Plus`.notifications (user_id, status, created_at);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_compound ON `Yotei-Plus`.refresh_tokens (user_id, expires_at, revoked_at);
+CREATE INDEX IF NOT EXISTS idx_friendships_compound ON `Yotei-Plus`.friendships (requester_id, addressee_id, status);
+CREATE INDEX IF NOT EXISTS idx_group_members_compound ON `Yotei-Plus`.group_members (group_id, user_id, role);
