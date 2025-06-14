@@ -354,3 +354,61 @@ export function useTaskWebSocket() {
     clearTaskUpdates
   }
 }
+
+// ソーシャル更新専用フック
+export function useSocialWebSocket() {
+  const websocket = useWebSocket()
+  const [socialUpdates, setSocialUpdates] = useState<any[]>([])
+
+  // ソーシャル更新メッセージの購読
+  useEffect(() => {
+    const unsubscribe = websocket.subscribe(
+      'social_update',
+      (message) => {
+        setSocialUpdates(prev => [message, ...prev.slice(0, 99)]) // 最新100件まで保持
+      }
+    )
+
+    return unsubscribe
+  }, [websocket.subscribe])
+
+  // ソーシャル更新履歴をクリア
+  const clearSocialUpdates = useCallback(() => {
+    setSocialUpdates([])
+  }, [])
+
+  return {
+    ...websocket,
+    socialUpdates,
+    clearSocialUpdates
+  }
+}
+
+// グループ更新専用フック
+export function useGroupWebSocket() {
+  const websocket = useWebSocket()
+  const [groupUpdates, setGroupUpdates] = useState<any[]>([])
+
+  // グループ更新メッセージの購読
+  useEffect(() => {
+    const unsubscribe = websocket.subscribe(
+      'group_update',
+      (message) => {
+        setGroupUpdates(prev => [message, ...prev.slice(0, 99)]) // 最新100件まで保持
+      }
+    )
+
+    return unsubscribe
+  }, [websocket.subscribe])
+
+  // グループ更新履歴をクリア
+  const clearGroupUpdates = useCallback(() => {
+    setGroupUpdates([])
+  }, [])
+
+  return {
+    ...websocket,
+    groupUpdates,
+    clearGroupUpdates
+  }
+}
