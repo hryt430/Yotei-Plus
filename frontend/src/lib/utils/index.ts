@@ -257,3 +257,7 @@ export function isValidPassword(password: string): boolean {
 export function isValidUsername(username: string): boolean {
   return username.length >= 3 && username.length <= 30;
 }
+
+// Social and Group utilities
+export * from './social-utils';
+export * from './group-utils';
