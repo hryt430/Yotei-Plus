@@ -1,4 +1,3 @@
-// internal/modules/social/interface/database/friendship_repository.go
 package database
 
 import (
