@@ -9,6 +9,12 @@ type UserInfo struct {
 	Email    string `json:"email"`
 }
 
+// Pagination はページネーション情報
+type Pagination struct {
+	Page     int `json:"page"`
+	PageSize int `json:"page_size"`
+}
+
 // UserValidator は統一されたユーザーバリデーションインターフェース
 type UserValidator interface {
 	// ユーザーの存在確認
