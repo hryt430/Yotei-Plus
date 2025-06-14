@@ -1,4 +1,3 @@
-// internal/modules/notification/infrastructure/gateway/app_notification_gateway.go
 package gateway
 
 import (
