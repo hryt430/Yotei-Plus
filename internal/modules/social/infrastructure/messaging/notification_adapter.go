@@ -1,4 +1,3 @@
-// internal/modules/social/infrastructure/messaging/notification_adapter.go
 package messaging
 
 import (
