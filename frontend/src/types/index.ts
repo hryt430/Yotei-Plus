@@ -5,4 +5,6 @@ export * from './group';
 export * from './task';
 export * from './notification';
 export * from './stats';
+export * from './deadline-notification';
+export * from './project';
 export * from './api';

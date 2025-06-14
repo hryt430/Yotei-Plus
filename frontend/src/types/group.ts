@@ -106,10 +106,7 @@ export interface SuccessResponse {
   message: string;
 }
 
-export interface ErrorResponse {
-  error: string;
-  message: string;
-}
+// ErrorResponse is imported from api.ts
 
 // === Group State Types ===
 export interface GroupState {
