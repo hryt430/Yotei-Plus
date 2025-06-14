@@ -1,4 +1,3 @@
-// internal/modules/group/usecase/group_service.go
 package usecase
 
 import (
@@ -518,7 +517,7 @@ func (s *groupService) InviteFriendsToGroup(ctx context.Context, groupID, invite
 	}
 
 	results := make([]*GroupInviteResult, len(friendIDs))
-	
+
 	for i, friendID := range friendIDs {
 		result := &GroupInviteResult{
 			FriendID: friendID,
