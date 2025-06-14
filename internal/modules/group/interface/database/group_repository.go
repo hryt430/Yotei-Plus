@@ -1,4 +1,3 @@
-// internal/modules/group/interface/database/group_repository.go
 package database
 
 import (

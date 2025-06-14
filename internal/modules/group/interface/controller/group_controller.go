@@ -1,4 +1,3 @@
-// internal/modules/group/interface/controller/group_controller.go
 package controller
 
 import (
