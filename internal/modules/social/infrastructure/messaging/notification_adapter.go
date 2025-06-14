@@ -146,9 +146,9 @@ func (a *SocialNotificationAdapter) SendInvitationNotification(ctx context.Conte
 	switch invitation.Method {
 	case domain.MethodInApp:
 		channels = []string{"app"}
-	case domain.MethodCode, domain.MethodQR:
+	case domain.MethodCode, domain.MethodURL:
 		channels = []string{"app"}
-		// QRコードや招待コードの場合、必要に応じて他のチャネルも追加
+		// URLや招待コードの場合、必要に応じて他のチャネルも追加
 	}
 
 	metadata := map[string]string{

@@ -16,7 +16,10 @@ type SqlHandler struct {
 // NewSqlHandler は新しいSqlHandlerを作成する
 func NewSqlHandler() SqlHandler {
 	// 共通のMySQLコネクションを使用
-	cfg := config.NewConfig()
+	cfg, err := config.LoadConfig("")
+	if err != nil {
+		panic(fmt.Sprintf("Failed to load config: %v", err))
+	}
 	conn, err := database.NewMySQLConnection(cfg)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to connect to database: %v", err))
@@ -93,14 +96,14 @@ func (h *SqlHandler) InitializeTables() error {
 	CREATE TABLE IF NOT EXISTS invitations (
 		id CHAR(36) PRIMARY KEY,
 		type ENUM('FRIEND', 'GROUP') NOT NULL,
-		method ENUM('IN_APP', 'CODE', 'QR') NOT NULL,
+		method ENUM('IN_APP', 'CODE', 'URL') NOT NULL,
 		status ENUM('PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED', 'CANCELED') NOT NULL DEFAULT 'PENDING',
 		inviter_id CHAR(36) NOT NULL,
 		invitee_id CHAR(36) NULL,
 		invitee_info JSON NULL COMMENT '未登録ユーザーの招待情報',
 		target_id CHAR(36) NULL COMMENT 'グループ招待の場合のグループID',
 		code VARCHAR(255) NULL COMMENT '招待コード',
-		qr_data TEXT NULL COMMENT 'QRコード用データ',
+		url TEXT NULL COMMENT '招待URL',
 		message TEXT NOT NULL DEFAULT '',
 		metadata JSON NULL COMMENT '追加のメタデータ',
 		expires_at TIMESTAMP NOT NULL,
