@@ -468,6 +468,7 @@ class ApiClient {
 
 // シングルトンインスタンス
 export const apiClient = new ApiClient()
+export const api = apiClient // デフォルトエクスポート用エイリアス
 
 // Token管理のエクスポート
 export { TokenManager }
