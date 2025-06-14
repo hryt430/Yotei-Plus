@@ -83,7 +83,7 @@ type InvitationMethod string
 const (
 	MethodInApp InvitationMethod = "IN_APP" // アプリ内通知
 	MethodCode  InvitationMethod = "CODE"   // 招待コード
-	MethodQR    InvitationMethod = "QR"     // QRコード
+	MethodURL   InvitationMethod = "URL"    // URL共有
 )
 
 // InvitationStatus は招待のステータス
@@ -110,9 +110,9 @@ type Invitation struct {
 	// 招待対象（friend招待の場合は空、group招待の場合はgroupID）
 	TargetID *uuid.UUID `json:"target_id,omitempty"`
 
-	// 招待コード・QR用
-	Code   string `json:"code,omitempty"`
-	QRData string `json:"qr_data,omitempty"`
+	// 招待コード・URL用
+	Code string `json:"code,omitempty"`
+	URL  string `json:"url,omitempty"`
 
 	// メタデータ
 	Message  string            `json:"message"`
@@ -153,11 +153,11 @@ func NewInvitation(
 		UpdatedAt: now,
 	}
 
-	// 招待コードの生成
-	if method == MethodCode || method == MethodQR {
+	// 招待コード・URLの生成
+	if method == MethodCode || method == MethodURL {
 		invitation.Code = generateInvitationCode()
-		if method == MethodQR {
-			invitation.QRData = generateQRData(invitation)
+		if method == MethodURL {
+			invitation.URL = generateInvitationURL(invitation)
 		}
 	}
 
@@ -171,10 +171,10 @@ func generateInvitationCode() string {
 	return hex.EncodeToString(bytes)
 }
 
-// generateQRData はQRコード用データを生成する
-func generateQRData(invitation *Invitation) string {
-	// 実際の実装では、アプリのカスタムスキームやディープリンクを使用
-	return "yotei://invite/" + invitation.Code
+// generateInvitationURL は招待URL用データを生成する
+func generateInvitationURL(invitation *Invitation) string {
+	// 実際の実装では、フロントエンドのURLを使用
+	return "https://yotei-plus.com/invite/" + invitation.Code
 }
 
 // SetInvitee は被招待者を設定する（登録済みユーザー）
