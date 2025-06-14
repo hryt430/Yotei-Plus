@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	commonDomain "github.com/hryt430/Yotei+/internal/common/domain"
 	"github.com/hryt430/Yotei+/internal/common/middleware"
 	"github.com/hryt430/Yotei+/internal/modules/social/domain"
 	"github.com/hryt430/Yotei+/internal/modules/social/usecase"
@@ -36,7 +37,7 @@ func (ic *InvitationController) CreateInvitation(c *gin.Context) {
 
 	var req struct {
 		Type         string     `json:"type" binding:"required"`               // "FRIEND" or "GROUP"
-		Method       string     `json:"method" binding:"required"`             // "IN_APP", "CODE", "QR"
+		Method       string     `json:"method" binding:"required"`             // "IN_APP", "CODE", "URL"
 		TargetID     *uuid.UUID `json:"target_id,omitempty"`                   // グループ招待の場合
 		InviteeEmail *string    `json:"invitee_email,omitempty"`               // 未登録ユーザー招待の場合
 		Message      string     `json:"message" binding:"max=500"`             // 招待メッセージ
@@ -58,7 +59,7 @@ func (ic *InvitationController) CreateInvitation(c *gin.Context) {
 
 	// 招待方法のバリデーション
 	invitationMethod := domain.InvitationMethod(req.Method)
-	if invitationMethod != domain.MethodInApp && invitationMethod != domain.MethodCode && invitationMethod != domain.MethodQR {
+	if invitationMethod != domain.MethodInApp && invitationMethod != domain.MethodCode && invitationMethod != domain.MethodURL {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "無効な招待方法です"})
 		return
 	}
@@ -320,12 +321,10 @@ func (ic *InvitationController) GetSentInvitations(c *gin.Context) {
 	}
 
 	// クエリパラメータ解析
-	invitationType := c.Query("type")
-	status := c.Query("status")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	pagination := domain.Pagination{
+	pagination := commonDomain.Pagination{
 		Page:     page,
 		PageSize: pageSize,
 	}
@@ -356,12 +355,10 @@ func (ic *InvitationController) GetReceivedInvitations(c *gin.Context) {
 	}
 
 	// クエリパラメータ解析
-	invitationType := c.Query("type")
-	status := c.Query("status")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	pagination := domain.Pagination{
+	pagination := commonDomain.Pagination{
 		Page:     page,
 		PageSize: pageSize,
 	}
@@ -381,10 +378,10 @@ func (ic *InvitationController) GetReceivedInvitations(c *gin.Context) {
 	})
 }
 
-// GenerateQRCode はQRコードを生成する
-// GET /api/v1/invitations/{invitationId}/qr
-func (ic *InvitationController) GenerateQRCode(c *gin.Context) {
-	user, err := middleware.GetUserFromContext(c)
+// GenerateURL は招待URLを生成する
+// GET /api/v1/invitations/{invitationId}/url
+func (ic *InvitationController) GenerateURL(c *gin.Context) {
+	_, err := middleware.GetUserFromContext(c)
 	if err != nil {
 		ic.logger.Error("Failed to get user from context", logger.Error(err))
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "認証が必要です"})
@@ -399,36 +396,17 @@ func (ic *InvitationController) GenerateQRCode(c *gin.Context) {
 		return
 	}
 
-	// クエリパラメータ
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "256"))
-	format := c.DefaultQuery("format", "png")
-
-	if size < 64 || size > 1024 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "サイズは64から1024の間で指定してください"})
-		return
-	}
-
-	if format != "png" && format != "svg" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "フォーマットはpngまたはsvgを指定してください"})
-		return
-	}
-
-	qrBytes, err := ic.socialService.GenerateInviteQR(c.Request.Context(), invitationID)
+	url, err := ic.socialService.GenerateInviteURL(c.Request.Context(), invitationID)
 	if err != nil {
-		ic.logger.Error("Failed to generate QR code",
+		ic.logger.Error("Failed to generate invite URL",
 			logger.Any("invitationID", invitationID),
 			logger.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "QRコードの生成に失敗しました"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "招待URLの生成に失敗しました"})
 		return
 	}
 
-	// Content-Typeを設定
-	if format == "svg" {
-		c.Header("Content-Type", "image/svg+xml")
-	} else {
-		c.Header("Content-Type", "image/png")
-	}
-
-	c.Header("Content-Disposition", "inline; filename=invite_qr."+format)
-	c.Data(http.StatusOK, c.GetHeader("Content-Type"), qrBytes)
+	c.JSON(http.StatusOK, gin.H{
+		"url": url,
+		"message": "招待URLを生成しました",
+	})
 }

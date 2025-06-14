@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	commonDomain "github.com/hryt430/Yotei+/internal/common/domain"
 	"github.com/hryt430/Yotei+/internal/common/middleware"
-	"github.com/hryt430/Yotei+/internal/modules/social/domain"
 	"github.com/hryt430/Yotei+/internal/modules/social/usecase"
 	"github.com/hryt430/Yotei+/pkg/logger"
 )
@@ -281,12 +281,10 @@ func (fc *FriendshipController) GetFriends(c *gin.Context) {
 	}
 
 	// クエリパラメータ解析
-	status := c.Query("status")
-	search := c.Query("search")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	pagination := domain.Pagination{
+	pagination := commonDomain.Pagination{
 		Page:     page,
 		PageSize: pageSize,
 	}
@@ -319,7 +317,7 @@ func (fc *FriendshipController) GetPendingRequests(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	pagination := domain.Pagination{
+	pagination := commonDomain.Pagination{
 		Page:     page,
 		PageSize: pageSize,
 	}
@@ -352,7 +350,7 @@ func (fc *FriendshipController) GetSentRequests(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	pagination := domain.Pagination{
+	pagination := commonDomain.Pagination{
 		Page:     page,
 		PageSize: pageSize,
 	}
