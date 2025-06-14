@@ -17,7 +17,7 @@ type SocialServiceImpl struct {
 	invitationRepo InvitationRepository
 	userValidator  commonDomain.UserValidator
 	eventPublisher SocialEventPublisher
-	qrGateway      QRCodeGateway
+	urlGateway     URLGateway
 	logger         logger.Logger
 }
 
@@ -33,9 +33,9 @@ type SocialEventPublisher interface {
 	PublishInvitationDeclined(ctx context.Context, invitation *domain.Invitation) error
 }
 
-// QRCodeGateway はQRコード生成のインターフェース
-type QRCodeGateway interface {
-	GenerateInviteQRCode(ctx context.Context, invitationID uuid.UUID, code string) ([]byte, error)
+// URLGateway はURL生成のインターフェース
+type URLGateway interface {
+	GenerateInviteURL(ctx context.Context, invitationID uuid.UUID, code string) (string, error)
 }
 
 // NewSocialServiceImpl は新しいSocialServiceImplを作成する
@@ -44,7 +44,7 @@ func NewSocialServiceImpl(
 	invitationRepo InvitationRepository,
 	userValidator commonDomain.UserValidator,
 	eventPublisher SocialEventPublisher,
-	qrGateway QRCodeGateway,
+	urlGateway URLGateway,
 	logger logger.Logger,
 ) SocialService {
 	return &SocialServiceImpl{
@@ -52,7 +52,7 @@ func NewSocialServiceImpl(
 		invitationRepo: invitationRepo,
 		userValidator:  userValidator,
 		eventPublisher: eventPublisher,
-		qrGateway:      qrGateway,
+		urlGateway:     urlGateway,
 		logger:         logger,
 	}
 }
@@ -617,22 +617,22 @@ func (s *SocialServiceImpl) GetReceivedInvitations(ctx context.Context, inviteeI
 	return s.invitationRepo.GetReceivedInvitations(ctx, inviteeID, pagination)
 }
 
-// GenerateInviteQR はQRコードを生成する
-func (s *SocialServiceImpl) GenerateInviteQR(ctx context.Context, invitationID uuid.UUID) ([]byte, error) {
+// GenerateInviteURL は招待URLを生成する
+func (s *SocialServiceImpl) GenerateInviteURL(ctx context.Context, invitationID uuid.UUID) (string, error) {
 	invitation, err := s.invitationRepo.GetInvitationByID(ctx, invitationID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get invitation: %w", err)
+		return "", fmt.Errorf("failed to get invitation: %w", err)
 	}
 
 	if invitation == nil {
-		return nil, errors.New("invitation not found")
+		return "", errors.New("invitation not found")
 	}
 
 	if invitation.Code == "" {
-		return nil, errors.New("invitation does not have a code")
+		return "", errors.New("invitation does not have a code")
 	}
 
-	return s.qrGateway.GenerateInviteQRCode(ctx, invitationID, invitation.Code)
+	return s.urlGateway.GenerateInviteURL(ctx, invitationID, invitation.Code)
 }
 
 // ValidateInviteCode は招待コードの妥当性を確認する
