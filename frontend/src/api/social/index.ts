@@ -1,4 +1,4 @@
-import { api } from '../client';
+import { apiClient } from '../client';
 import {
   FriendRequest,
   InvitationRequest,
@@ -13,112 +13,234 @@ import {
 } from '@/types';
 
 // === Friend Management ===
-export const socialApi = {
-  // Friends
-  sendFriendRequest: async (request: FriendRequest): Promise<FriendshipResponse> => {
-    const response = await api.post('/social/friends/request', request);
-    return response.data;
-  },
 
-  acceptFriendRequest: async (friendshipId: string): Promise<FriendshipResponse> => {
-    const response = await api.put(`/social/friends/${friendshipId}/accept`);
-    return response.data;
-  },
+// フレンドリクエストを送信
+export async function sendFriendRequest(request: FriendRequest): Promise<FriendshipResponse> {
+  const response = await apiClient.post<FriendshipResponse>('/social/friends/request', request);
+  return response;
+}
 
-  declineFriendRequest: async (friendshipId: string): Promise<ApiResponse> => {
-    const response = await api.put(`/social/friends/${friendshipId}/decline`);
-    return response.data;
-  },
+// フレンドリクエストを承認
+export async function acceptFriendRequest(friendshipId: string): Promise<FriendshipResponse> {
+  const response = await apiClient.put<FriendshipResponse>(`/social/friends/${friendshipId}/accept`);
+  return response;
+}
 
-  removeFriend: async (userId: string): Promise<ApiResponse> => {
-    const response = await api.delete(`/social/friends/${userId}`);
-    return response.data;
-  },
+// フレンドリクエストを拒否
+export async function declineFriendRequest(friendshipId: string): Promise<ApiResponse> {
+  const response = await apiClient.put<ApiResponse>(`/social/friends/${friendshipId}/decline`);
+  return response;
+}
 
-  blockUser: async (userId: string): Promise<ApiResponse> => {
-    const response = await api.post(`/social/friends/${userId}/block`);
-    return response.data;
-  },
+// 友達を削除
+export async function removeFriend(userId: string): Promise<ApiResponse> {
+  const response = await apiClient.delete<ApiResponse>(`/social/friends/${userId}`);
+  return response;
+}
 
-  unblockUser: async (userId: string): Promise<ApiResponse> => {
-    const response = await api.delete(`/social/friends/${userId}/block`);
-    return response.data;
-  },
+// ユーザーをブロック
+export async function blockUser(userId: string): Promise<ApiResponse> {
+  const response = await apiClient.post<ApiResponse>(`/social/friends/${userId}/block`);
+  return response;
+}
 
-  getFriends: async (pagination?: Pagination): Promise<FriendshipListResponse> => {
-    const params = pagination ? { page: pagination.page, page_size: pagination.page_size } : {};
-    const response = await api.get('/social/friends', { params });
-    return response.data;
-  },
+// ユーザーのブロックを解除
+export async function unblockUser(userId: string): Promise<ApiResponse> {
+  const response = await apiClient.delete<ApiResponse>(`/social/friends/${userId}/block`);
+  return response;
+}
 
-  getPendingRequests: async (pagination?: Pagination): Promise<FriendshipListResponse> => {
-    const params = pagination ? { page: pagination.page, page_size: pagination.page_size } : {};
-    const response = await api.get('/social/friends/pending', { params });
-    return response.data;
-  },
+// 友達一覧を取得
+export async function getFriends(pagination?: Pagination): Promise<FriendshipListResponse> {
+  const params = pagination ? { page: pagination.page, page_size: pagination.page_size } : {};
+  const response = await apiClient.get<FriendshipListResponse>('/social/friends', params);
+  return response;
+}
 
-  getSentRequests: async (pagination?: Pagination): Promise<FriendshipListResponse> => {
-    const params = pagination ? { page: pagination.page, page_size: pagination.page_size } : {};
-    const response = await api.get('/social/friends/sent', { params });
-    return response.data;
-  },
+// 受信した友達リクエスト一覧を取得
+export async function getPendingRequests(pagination?: Pagination): Promise<FriendshipListResponse> {
+  const params = pagination ? { page: pagination.page, page_size: pagination.page_size } : {};
+  const response = await apiClient.get<FriendshipListResponse>('/social/friends/pending', params);
+  return response;
+}
 
-  getMutualFriends: async (userId: string): Promise<FriendshipListResponse> => {
-    const response = await api.get(`/social/friends/${userId}/mutual`);
-    return response.data;
-  },
+// 送信した友達リクエスト一覧を取得
+export async function getSentRequests(pagination?: Pagination): Promise<FriendshipListResponse> {
+  const params = pagination ? { page: pagination.page, page_size: pagination.page_size } : {};
+  const response = await apiClient.get<FriendshipListResponse>('/social/friends/sent', params);
+  return response;
+}
 
-  // Invitations
-  createInvitation: async (request: InvitationRequest): Promise<InvitationResponse> => {
-    const response = await api.post('/social/invitations', request);
-    return response.data;
-  },
+// 共通の友達を取得
+export async function getMutualFriends(userId: string): Promise<FriendshipListResponse> {
+  const response = await apiClient.get<FriendshipListResponse>(`/social/friends/${userId}/mutual`);
+  return response;
+}
 
-  getInvitation: async (invitationId: string): Promise<InvitationResponse> => {
-    const response = await api.get(`/social/invitations/${invitationId}`);
-    return response.data;
-  },
+// === Invitations ===
 
-  getInvitationByCode: async (code: string): Promise<InvitationResponse> => {
-    const response = await api.get(`/social/invitations/code/${code}`);
-    return response.data;
-  },
+// 招待を作成
+export async function createInvitation(request: InvitationRequest): Promise<InvitationResponse> {
+  const response = await apiClient.post<InvitationResponse>('/social/invitations', request);
+  return response;
+}
 
-  acceptInvitation: async (code: string): Promise<ApiResponse> => {
-    const response = await api.post(`/social/invitations/${code}/accept`);
-    return response.data;
-  },
+// 招待情報を取得
+export async function getInvitation(invitationId: string): Promise<InvitationResponse> {
+  const response = await apiClient.get<InvitationResponse>(`/social/invitations/${invitationId}`);
+  return response;
+}
 
-  declineInvitation: async (invitationId: string): Promise<ApiResponse> => {
-    const response = await api.put(`/social/invitations/${invitationId}/decline`);
-    return response.data;
-  },
+// コードで招待情報を取得
+export async function getInvitationByCode(code: string): Promise<InvitationResponse> {
+  const response = await apiClient.get<InvitationResponse>(`/social/invitations/code/${code}`);
+  return response;
+}
 
-  cancelInvitation: async (invitationId: string): Promise<ApiResponse> => {
-    const response = await api.delete(`/social/invitations/${invitationId}`);
-    return response.data;
-  },
+// 招待を承認
+export async function acceptInvitation(code: string): Promise<ApiResponse> {
+  const response = await apiClient.post<ApiResponse>(`/social/invitations/${code}/accept`);
+  return response;
+}
 
-  getSentInvitations: async (pagination?: Pagination): Promise<InvitationListResponse> => {
-    const params = pagination ? { page: pagination.page, page_size: pagination.page_size } : {};
-    const response = await api.get('/social/invitations/sent', { params });
-    return response.data;
-  },
+// 招待を拒否
+export async function declineInvitation(invitationId: string): Promise<ApiResponse> {
+  const response = await apiClient.put<ApiResponse>(`/social/invitations/${invitationId}/decline`);
+  return response;
+}
 
-  getReceivedInvitations: async (pagination?: Pagination): Promise<InvitationListResponse> => {
-    const params = pagination ? { page: pagination.page, page_size: pagination.page_size } : {};
-    const response = await api.get('/social/invitations/received', { params });
-    return response.data;
-  },
+// 招待をキャンセル
+export async function cancelInvitation(invitationId: string): Promise<ApiResponse> {
+  const response = await apiClient.delete<ApiResponse>(`/social/invitations/${invitationId}`);
+  return response;
+}
 
-  generateInviteURL: async (invitationId: string): Promise<InviteURLResponse> => {
-    const response = await api.get(`/social/invitations/${invitationId}/url`);
-    return response.data;
-  },
+// 送信した招待一覧を取得
+export async function getSentInvitations(pagination?: Pagination): Promise<InvitationListResponse> {
+  const params = pagination ? { page: pagination.page, page_size: pagination.page_size } : {};
+  const response = await apiClient.get<InvitationListResponse>('/social/invitations/sent', params);
+  return response;
+}
 
-  // Stats
-  getSocialStats: async (): Promise<SocialStatsResponse> => {
-    const response = await api.get('/social/stats');
-    return response.data;
-  }
-};
+// 受信した招待一覧を取得
+export async function getReceivedInvitations(pagination?: Pagination): Promise<InvitationListResponse> {
+  const params = pagination ? { page: pagination.page, page_size: pagination.page_size } : {};
+  const response = await apiClient.get<InvitationListResponse>('/social/invitations/received', params);
+  return response;
+}
+
+// 招待URLを生成
+export async function generateInviteURL(invitationId: string): Promise<InviteURLResponse> {
+  const response = await apiClient.get<InviteURLResponse>(`/social/invitations/${invitationId}/url`);
+  return response;
+}
+
+// === Stats ===
+
+// ソーシャル統計を取得
+export async function getSocialStats(): Promise<SocialStatsResponse> {
+  const response = await apiClient.get<SocialStatsResponse>('/social/stats');
+  return response;
+}
+
+// === Search Functions ===
+
+// ユーザーを検索（友達追加用）
+export async function searchUsers(
+  query: string,
+  limit: number = 10
+): Promise<ApiResponse<{
+  users: Array<{
+    id: string;
+    username: string;
+    email: string;
+    role: 'user' | 'admin';
+    mutualFriends?: number;
+    relationshipStatus: 'none' | 'pending-sent' | 'pending-received' | 'friends';
+  }>
+}>> {
+  const response = await apiClient.get<ApiResponse<{
+    users: Array<{
+      id: string;
+      username: string;
+      email: string;
+      role: 'user' | 'admin';
+      mutualFriends?: number;
+      relationshipStatus: 'none' | 'pending-sent' | 'pending-received' | 'friends';
+    }>
+  }>>('/social/search/users', { q: query, limit: limit.toString() });
+  return response;
+}
+
+// === Utility Functions ===
+
+// 友達関係のステータスを確認
+export async function getFriendshipStatus(userId: string): Promise<ApiResponse<{
+  status: 'none' | 'pending-sent' | 'pending-received' | 'friends' | 'blocked';
+  friendship_id?: string;
+}>> {
+  const response = await apiClient.get<ApiResponse<{
+    status: 'none' | 'pending-sent' | 'pending-received' | 'friends' | 'blocked';
+    friendship_id?: string;
+  }>>(`/social/friends/${userId}/status`);
+  return response;
+}
+
+// 友達の活動状況を取得
+export async function getFriendsActivity(
+  limit: number = 20
+): Promise<ApiResponse<{
+  activities: Array<{
+    id: string;
+    friend_id: string;
+    friend_name: string;
+    activity_type: 'task_completed' | 'project_joined' | 'achievement_unlocked';
+    description: string;
+    timestamp: string;
+  }>
+}>> {
+  const response = await apiClient.get<ApiResponse<{
+    activities: Array<{
+      id: string;
+      friend_id: string;
+      friend_name: string;
+      activity_type: 'task_completed' | 'project_joined' | 'achievement_unlocked';
+      description: string;
+      timestamp: string;
+    }>
+  }>>('/social/friends/activity', { limit: limit.toString() });
+  return response;
+}
+
+// ブロックしたユーザー一覧を取得
+export async function getBlockedUsers(pagination?: Pagination): Promise<FriendshipListResponse> {
+  const params = pagination ? { page: pagination.page, page_size: pagination.page_size } : {};
+  const response = await apiClient.get<FriendshipListResponse>('/social/friends/blocked', params);
+  return response;
+}
+
+// 友達の推奨リストを取得
+export async function getFriendSuggestions(
+  limit: number = 10
+): Promise<ApiResponse<{
+  suggestions: Array<{
+    id: string;
+    username: string;
+    email: string;
+    mutualFriends: number;
+    commonInterests: string[];
+    suggestionScore: number;
+  }>
+}>> {
+  const response = await apiClient.get<ApiResponse<{
+    suggestions: Array<{
+      id: string;
+      username: string;
+      email: string;
+      mutualFriends: number;
+      commonInterests: string[];
+      suggestionScore: number;
+    }>
+  }>>('/social/friends/suggestions', { limit: limit.toString() });
+  return response;
+}
