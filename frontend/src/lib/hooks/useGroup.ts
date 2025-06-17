@@ -1,5 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { groupApi } from '@/api/group';
+import {
+  getMyGroups as apiGetMyGroups,
+  createGroup as apiCreateGroup,
+  getGroup as apiGetGroup,
+  updateGroup as apiUpdateGroup,
+  deleteGroup as apiDeleteGroup,
+  addMember as apiAddMember,
+  removeMember as apiRemoveMember,
+  updateMemberRole as apiUpdateMemberRole,
+  searchGroups as apiSearchGroups
+} from '@/api/group';
 import {
   GroupState,
   CreateGroupRequest,
@@ -29,7 +39,7 @@ export const useGroup = () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const response = await groupApi.getMyGroups(type, pagination);
+      const response = await apiGetMyGroups(type, pagination);
       setState(prev => ({
         ...prev,
         groups: response.data.groups,
@@ -56,7 +66,7 @@ export const useGroup = () => {
   // Group actions
   const createGroup = useCallback(async (request: CreateGroupRequest) => {
     try {
-      const response = await groupApi.createGroup(request);
+      const response = await apiCreateGroup(request);
       setState(prev => ({
         ...prev,
         groups: [response.data, ...prev.groups]
@@ -80,7 +90,7 @@ export const useGroup = () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const response = await groupApi.getGroup(groupId);
+      const response = await apiGetGroup(groupId);
       setState(prev => ({
         ...prev,
         currentGroup: response.data,
@@ -99,7 +109,7 @@ export const useGroup = () => {
 
   const updateGroup = useCallback(async (groupId: string, request: UpdateGroupRequest) => {
     try {
-      const response = await groupApi.updateGroup(groupId, request);
+      const response = await apiUpdateGroup(groupId, request);
       setState(prev => ({
         ...prev,
         groups: prev.groups.map(group => 
@@ -125,7 +135,7 @@ export const useGroup = () => {
 
   const deleteGroup = useCallback(async (groupId: string) => {
     try {
-      await groupApi.deleteGroup(groupId);
+      await apiDeleteGroup(groupId);
       setState(prev => ({
         ...prev,
         groups: prev.groups.filter(group => group.id !== groupId),
@@ -147,7 +157,7 @@ export const useGroup = () => {
   // Member actions
   const addMember = useCallback(async (groupId: string, request: AddMemberRequest) => {
     try {
-      await groupApi.addMember(groupId, request);
+      await apiAddMember(groupId, request);
       // Refresh current group if it's the same
       if (state.currentGroup?.id === groupId) {
         await getGroup(groupId);
@@ -167,7 +177,7 @@ export const useGroup = () => {
 
   const removeMember = useCallback(async (groupId: string, userId: string) => {
     try {
-      await groupApi.removeMember(groupId, userId);
+      await apiRemoveMember(groupId, userId);
       // Refresh current group if it's the same
       if (state.currentGroup?.id === groupId) {
         await getGroup(groupId);
@@ -191,7 +201,7 @@ export const useGroup = () => {
     request: UpdateMemberRoleRequest
   ) => {
     try {
-      await groupApi.updateMemberRole(groupId, userId, request);
+      await apiUpdateMemberRole(groupId, userId, request);
       // Refresh current group if it's the same
       if (state.currentGroup?.id === groupId) {
         await getGroup(groupId);
@@ -217,7 +227,7 @@ export const useGroup = () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const response = await groupApi.searchGroups(query, type, pagination);
+      const response = await apiSearchGroups(query, type, pagination);
       setState(prev => ({
         ...prev,
         groups: response.data.groups,

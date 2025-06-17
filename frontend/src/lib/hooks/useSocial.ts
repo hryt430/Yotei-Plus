@@ -1,5 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import { socialApi } from '@/api/social';
+import {
+  getFriends,
+  getPendingRequests,
+  getSentRequests,
+  getReceivedInvitations,
+  getSocialStats,
+  sendFriendRequest as apiSendFriendRequest,
+  acceptFriendRequest as apiAcceptFriendRequest,
+  declineFriendRequest as apiDeclineFriendRequest,
+  removeFriend as apiRemoveFriend,
+  blockUser as apiBlockUser,
+  createInvitation as apiCreateInvitation,
+  acceptInvitation as apiAcceptInvitation,
+  generateInviteURL as apiGenerateInviteURL
+} from '@/api/social';
 import {
   SocialState,
   FriendRequest,
@@ -13,7 +27,7 @@ import { toast } from '@/hooks/use-toast';
 export const useSocial = () => {
   const [state, setState] = useState<SocialState>({
     friends: [],
-    pendingRequests: [],
+    friendRequests: [], 
     sentRequests: [],
     invitations: [],
     stats: null,
@@ -26,18 +40,18 @@ export const useSocial = () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const [friendsRes, pendingRes, sentRes, invitationsRes, statsRes] = await Promise.all([
-        socialApi.getFriends(),
-        socialApi.getPendingRequests(),
-        socialApi.getSentRequests(),
-        socialApi.getReceivedInvitations(),
-        socialApi.getSocialStats()
+      const [friendsRes, friendRequestsRes, sentRes, invitationsRes, statsRes] = await Promise.all([
+        getFriends(),
+        getPendingRequests(),
+        getSentRequests(),
+        getReceivedInvitations(),
+        getSocialStats()
       ]);
 
       setState(prev => ({
         ...prev,
         friends: friendsRes.data,
-        pendingRequests: pendingRes.data,
+        friendRequests: friendRequestsRes.data,
         sentRequests: sentRes.data,
         invitations: invitationsRes.data,
         stats: statsRes.data,
@@ -59,7 +73,7 @@ export const useSocial = () => {
   // Friend actions
   const sendFriendRequest = useCallback(async (request: FriendRequest) => {
     try {
-      const response = await socialApi.sendFriendRequest(request);
+      const response = await apiSendFriendRequest(request);
       setState(prev => ({
         ...prev,
         sentRequests: [...prev.sentRequests, response.data]
@@ -81,11 +95,11 @@ export const useSocial = () => {
 
   const acceptFriendRequest = useCallback(async (friendshipId: string) => {
     try {
-      const response = await socialApi.acceptFriendRequest(friendshipId);
+      const response = await apiAcceptFriendRequest(friendshipId);
       setState(prev => ({
         ...prev,
         friends: [...prev.friends, response.data],
-        pendingRequests: prev.pendingRequests.filter(req => req.id !== friendshipId)
+        friendRequests: prev.friendRequests.filter(req => req.id !== friendshipId)
       }));
       toast({
         title: '友達申請を承認しました',
@@ -104,10 +118,10 @@ export const useSocial = () => {
 
   const declineFriendRequest = useCallback(async (friendshipId: string) => {
     try {
-      await socialApi.declineFriendRequest(friendshipId);
+      await apiDeclineFriendRequest(friendshipId);
       setState(prev => ({
         ...prev,
-        pendingRequests: prev.pendingRequests.filter(req => req.id !== friendshipId)
+        friendRequests: prev.friendRequests.filter(req => req.id !== friendshipId)
       }));
       toast({
         title: '友達申請を拒否しました'
@@ -124,7 +138,7 @@ export const useSocial = () => {
 
   const removeFriend = useCallback(async (userId: string) => {
     try {
-      await socialApi.removeFriend(userId);
+      await apiRemoveFriend(userId);
       setState(prev => ({
         ...prev,
         friends: prev.friends.filter(friend => 
@@ -146,7 +160,7 @@ export const useSocial = () => {
 
   const blockUser = useCallback(async (userId: string) => {
     try {
-      await socialApi.blockUser(userId);
+      await apiBlockUser(userId);
       setState(prev => ({
         ...prev,
         friends: prev.friends.filter(friend => 
@@ -169,7 +183,7 @@ export const useSocial = () => {
   // Invitation actions
   const createInvitation = useCallback(async (request: InvitationRequest) => {
     try {
-      const response = await socialApi.createInvitation(request);
+      const response = await apiCreateInvitation(request);
       toast({
         title: '招待を作成しました',
         description: '招待URLを共有してください。'
@@ -187,7 +201,7 @@ export const useSocial = () => {
 
   const acceptInvitation = useCallback(async (code: string) => {
     try {
-      const response = await socialApi.acceptInvitation(code);
+      const response = await apiAcceptInvitation(code);
       await loadData(); // Refresh data
       toast({
         title: '招待を受諾しました'
@@ -205,7 +219,7 @@ export const useSocial = () => {
 
   const generateInviteURL = useCallback(async (invitationId: string) => {
     try {
-      const response = await socialApi.generateInviteURL(invitationId);
+      const response = await apiGenerateInviteURL(invitationId);
       return response.data.url;
     } catch (error: any) {
       toast({
