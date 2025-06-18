@@ -1,20 +1,20 @@
 import { User } from './user';
 
 // === Group Types ===
-export type GroupType = 'PUBLIC' | 'PRIVATE' | 'SECRET';
+export type GroupType = 'PROJECT' | 'SCHEDULE';
+export type GroupVisibility = 'PUBLIC' | 'PRIVATE' | 'SECRET';
 export type MemberRole = 'OWNER' | 'ADMIN' | 'MEMBER';
 
 export interface Group {
   id: string;
   name: string;
   description?: string;
-  type: GroupType;
+  type: GroupType;           
   owner_id: string;
-  settings?: GroupSettings;
+  settings: GroupSettings;  
   member_count: number;
   created_at: string;
   updated_at: string;
-  owner?: User;
 }
 
 export interface GroupMember {
@@ -32,10 +32,19 @@ export interface GroupWithMembers extends Group {
 }
 
 export interface GroupSettings {
+  visibility: GroupVisibility;
   allow_member_invite?: boolean;
   auto_accept_invites?: boolean;
   max_members?: number;
-  [key: string]: any;
+  
+  // プロジェクト固有設定
+  enable_gantt_chart?: boolean;
+  enable_task_dependency?: boolean;
+  enable_time_tracking?: boolean;
+  
+  // スケジュール固有設定
+  default_privacy_level?: 'NONE' | 'BUSY' | 'TITLE' | 'DETAILS';
+  allow_schedule_details?: boolean;
 }
 
 export interface GroupStats {
@@ -122,10 +131,10 @@ export interface GroupState {
 }
 
 // === Constants ===
-export const GROUP_TYPES: GroupType[] = ['PUBLIC', 'PRIVATE', 'SECRET'];
+export const GROUP_TYPES: GroupType[] = ['PROJECT', 'SCHEDULE'];
 export const MEMBER_ROLES: MemberRole[] = ['OWNER', 'ADMIN', 'MEMBER'];
 
-export const GROUP_TYPE_LABELS: Record<GroupType, string> = {
+export const GROUP_TYPE_LABELS: Record<GroupVisibility, string> = {
   PUBLIC: '公開',
   PRIVATE: '非公開',
   SECRET: '秘密'

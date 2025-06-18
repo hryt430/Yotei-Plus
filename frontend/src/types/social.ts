@@ -19,6 +19,16 @@ export interface Friendship {
   addressee?: User;
 }
 
+export interface SocialState {
+  friends: Friendship[];
+  friendRequests: Friendship[];
+  sentRequests: Friendship[];
+  invitations: Invitation[];
+  stats: SocialStats | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
 export interface Invitation {
   id: string;
   type: InvitationType;
@@ -114,15 +124,4 @@ export interface InviteURLResponse {
     url: string;
   };
   message?: string;
-}
-
-// === Social State Types ===
-export interface SocialState {
-  friends: Friendship[];
-  pendingRequests: Friendship[];
-  sentRequests: Friendship[];
-  invitations: Invitation[];
-  stats: SocialStats | null;
-  isLoading: boolean;
-  error: string | null;
 }
