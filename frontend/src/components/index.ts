@@ -4,4 +4,7 @@ export * from './layout'
 export * from './notifications'
 export * from './tasks'
 export * from './providers'
+export * from './deadlines';
+export * from './friends';
+export * from './projects';
 export * from './ui'
