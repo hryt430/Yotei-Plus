@@ -2,14 +2,14 @@
 
 import type React from "react"
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/forms/button"
+import { Input } from "@/components/ui/forms/input"
+import { Label } from "@/components/ui/forms/label"
+import { Badge } from "@/components/ui/data-display/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/data-display/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/layout/tabs"
+import { ScrollArea } from "@/components/ui/layout/scroll-area"
+import { Textarea } from "@/components/ui/forms/textarea"
 import {
   X,
   Search,
@@ -25,18 +25,41 @@ import {
   UserCheck,
   Send,
 } from "lucide-react"
-import type { Friend, FriendRequest, FriendSearchResult } from "@/types/friend"
+import type { Friendship, User, Invitation } from "@/types"
+
+// 検索結果用の型定義（APIレスポンスに対応）
+interface FriendSearchResult {
+  id: string;
+  username: string;
+  email: string;
+  role: "user" | "admin";
+  avatar?: string;
+  jobRole?: string;
+  company?: string;
+  mutualFriends?: number;
+  relationshipStatus: 'none' | 'pending-sent' | 'pending-received' | 'friends';
+}
+
+// Friend表示用の拡張型（UI表示のため）
+interface FriendDisplay {
+  user: User;
+  friendship: Friendship;
+  mutualFriends?: number;
+  lastActive?: Date;
+}
 
 interface FriendManagementModalProps {
   isOpen: boolean
   onClose: () => void
-  friends: Friend[]
-  friendRequests: FriendRequest[]
+  friends: Friendship[]
+  friendRequests: Friendship[]
+  sentRequests: Friendship[]    
   onSendFriendRequest: (email: string, message?: string) => void
   onAcceptFriendRequest: (requestId: string) => void
   onRejectFriendRequest: (requestId: string) => void
   onRemoveFriend: (friendId: string) => void
   onBlockUser: (userId: string) => void
+  currentUserId?: string
 }
 
 export function FriendManagementModal({
@@ -44,11 +67,13 @@ export function FriendManagementModal({
   onClose,
   friends,
   friendRequests,
+  sentRequests,
   onSendFriendRequest,
   onAcceptFriendRequest,
   onRejectFriendRequest,
   onRemoveFriend,
   onBlockUser,
+  currentUserId = 'current-user'
 }: FriendManagementModalProps) {
   const [activeTab, setActiveTab] = useState("friends")
   const [searchTerm, setSearchTerm] = useState("")
@@ -56,6 +81,36 @@ export function FriendManagementModal({
   const [inviteMessage, setInviteMessage] = useState("")
   const [searchResults, setSearchResults] = useState<FriendSearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
+
+  // Helper function to get the other user in a friendship
+  const getOtherUser = (friendship: Friendship): User | undefined => {
+    if (friendship.requester_id === currentUserId) {
+      return friendship.addressee
+    } else {
+      return friendship.requester
+    }
+  }
+
+  // Friendship型をFriendDisplay型に変換
+  const convertToFriendDisplay = (friendship: Friendship): FriendDisplay | null => {
+    const otherUser = getOtherUser(friendship);
+    if (!otherUser) return null;
+    
+    return {
+      user: otherUser,
+      friendship: friendship,
+    };
+  };
+
+  // データの分類（既存の型システムに基づく）
+  const acceptedFriends = friends
+    .filter((friend) => friend.status === "ACCEPTED")
+    .map(convertToFriendDisplay)
+    .filter((friend): friend is FriendDisplay => friend !== null)
+
+  const pendingRequests = friendRequests.filter((req) => 
+    req.status === "PENDING" && req.addressee_id === currentUserId
+  )
 
   // Mock search function - in real app, this would call an API
   const handleSearch = async () => {
@@ -67,35 +122,31 @@ export function FriendManagementModal({
       const mockResults: FriendSearchResult[] = [
         {
           id: "search-1",
-          name: "Alice Johnson",
+          username: "Alice Johnson",
           email: "alice.johnson@example.com",
-          avatar: "/placeholder.svg",
-          role: "Product Manager",
-          company: "TechCorp",
+          role: "user" as const,
           mutualFriends: 3,
-          relationshipStatus: "none",
+          relationshipStatus: "none" as const,
         },
         {
           id: "search-2",
-          name: "Bob Smith",
+          username: "Bob Smith",
           email: "bob.smith@example.com",
-          role: "Developer",
-          company: "StartupXYZ",
+          role: "user" as const,
           mutualFriends: 1,
-          relationshipStatus: "pending-sent",
+          relationshipStatus: "pending-sent" as const,
         },
         {
           id: "search-3",
-          name: "Carol Davis",
+          username: "Carol Davis",
           email: "carol.davis@example.com",
-          role: "Designer",
-          company: "Creative Agency",
+          role: "user" as const,
           mutualFriends: 0,
-          relationshipStatus: "friends",
+          relationshipStatus: "friends" as const,
         },
       ].filter(
         (user) =>
-          user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
           user.email.toLowerCase().includes(searchTerm.toLowerCase()),
       )
       setSearchResults(mockResults)
@@ -114,14 +165,14 @@ export function FriendManagementModal({
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending":
+      case "PENDING":
         return (
           <Badge variant="outline" className="text-yellow-600 border-yellow-200 bg-yellow-50">
             <Clock className="w-3 h-3 mr-1" />
             Pending
           </Badge>
         )
-      case "accepted":
+      case "ACCEPTED":
         return (
           <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
             <UserCheck className="w-3 h-3 mr-1" />
@@ -185,10 +236,6 @@ export function FriendManagementModal({
     }
   }
 
-  const pendingRequests = friendRequests.filter((req) => req.status === "pending")
-  const sentRequests = friendRequests.filter((req) => req.status === "pending") // In real app, filter by current user
-  const acceptedFriends = friends.filter((friend) => friend.status === "accepted")
-
   if (!isOpen) return null
 
   return (
@@ -215,14 +262,18 @@ export function FriendManagementModal({
         {/* Content */}
         <div className="p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="friends" className="flex items-center">
                 <Users className="w-4 h-4 mr-2" />
                 Friends ({acceptedFriends.length})
               </TabsTrigger>
               <TabsTrigger value="requests" className="flex items-center">
                 <UserPlus className="w-4 h-4 mr-2" />
-                Requests ({pendingRequests.length})
+                Requests ({friendRequests.length})
+              </TabsTrigger>
+              <TabsTrigger value="sent" className="flex items-center">
+                <Clock className="w-4 h-4 mr-2" />
+                Sent ({sentRequests.length})
               </TabsTrigger>
               <TabsTrigger value="search" className="flex items-center">
                 <Search className="w-4 h-4 mr-2" />
@@ -250,16 +301,16 @@ export function FriendManagementModal({
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {acceptedFriends.map((friend) => (
+                      {acceptedFriends.map((friendDisplay) => (
                         <div
-                          key={friend.id}
+                          key={friendDisplay.friendship.id}
                           className="flex items-center justify-between p-4 bg-gray-50/50 rounded-lg border border-gray-200/60 hover:bg-gray-100/50 transition-colors"
                         >
                           <div className="flex items-center space-x-3">
                             <Avatar className="w-12 h-12">
-                              <AvatarImage src={friend.avatar || "/placeholder.svg"} />
+                              <AvatarImage src="/placeholder.svg" />
                               <AvatarFallback className="bg-blue-100 text-blue-600 font-medium">
-                                {friend.name
+                                {friendDisplay.user.username
                                   .split(" ")
                                   .map((n) => n[0])
                                   .join("")
@@ -267,18 +318,12 @@ export function FriendManagementModal({
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <div className="font-medium text-gray-900">{friend.name}</div>
-                              <div className="text-sm text-gray-500">{friend.email}</div>
-                              {friend.role && friend.company && (
+                              <div className="font-medium text-gray-900">{friendDisplay.user.username}</div>
+                              <div className="text-sm text-gray-500">{friendDisplay.user.email}</div>
+                              {friendDisplay.friendship.accepted_at && (
                                 <div className="text-xs text-gray-400 flex items-center mt-1">
-                                  <Building className="w-3 h-3 mr-1" />
-                                  {friend.role} at {friend.company}
-                                </div>
-                              )}
-                              {friend.lastActive && (
-                                <div className="text-xs text-gray-400 flex items-center mt-1">
-                                  <Clock className="w-3 h-3 mr-1" />
-                                  Last active {friend.lastActive.toLocaleDateString()}
+                                  <Calendar className="w-3 h-3 mr-1" />
+                                  Friends since {new Date(friendDisplay.friendship.accepted_at).toLocaleDateString()}
                                 </div>
                               )}
                             </div>
@@ -288,11 +333,12 @@ export function FriendManagementModal({
                               <MessageCircle className="w-3 h-3 mr-1" />
                               Message
                             </Button>
-                            <Button size="sm" variant="outline" className="border-gray-300 hover:bg-gray-50">
-                              <Calendar className="w-3 h-3 mr-1" />
-                              Schedule
-                            </Button>
-                            <Button size="sm" variant="ghost" className="text-gray-400 hover:text-gray-600">
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="text-gray-400 hover:text-gray-600"
+                              onClick={() => onRemoveFriend(friendDisplay.friendship.id)}
+                            >
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </div>
@@ -320,62 +366,124 @@ export function FriendManagementModal({
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {pendingRequests.map((request) => (
-                        <div
-                          key={request.id}
-                          className="flex items-center justify-between p-4 bg-blue-50/50 rounded-lg border border-blue-200/60"
-                        >
-                          <div className="flex items-center space-x-3">
-                            <Avatar className="w-12 h-12">
-                              <AvatarImage src={request.fromUser.avatar || "/placeholder.svg"} />
-                              <AvatarFallback className="bg-blue-100 text-blue-600 font-medium">
-                                {request.fromUser.name
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")
-                                  .toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-medium text-gray-900">{request.fromUser.name}</div>
-                              <div className="text-sm text-gray-500">{request.fromUser.email}</div>
-                              {request.fromUser.role && request.fromUser.company && (
-                                <div className="text-xs text-gray-400 flex items-center mt-1">
-                                  <Building className="w-3 h-3 mr-1" />
-                                  {request.fromUser.role} at {request.fromUser.company}
+                      {pendingRequests.map((request) => {
+                        const fromUser = request.requester
+                        if (!fromUser) return null
+
+                        return (
+                          <div
+                            key={request.id}
+                            className="flex items-center justify-between p-4 bg-blue-50/50 rounded-lg border border-blue-200/60"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <Avatar className="w-12 h-12">
+                                <AvatarImage src="/placeholder.svg" />
+                                <AvatarFallback className="bg-blue-100 text-blue-600 font-medium">
+                                  {fromUser.username
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")
+                                    .toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-medium text-gray-900">{fromUser.username}</div>
+                                <div className="text-sm text-gray-500">{fromUser.email}</div>
+                                <div className="text-xs text-gray-400 mt-1">
+                                  Sent {new Date(request.created_at).toLocaleDateString()}
                                 </div>
-                              )}
-                              {request.message && (
-                                <div className="text-sm text-gray-600 mt-2 p-2 bg-white rounded border">
-                                  "{request.message}"
-                                </div>
-                              )}
-                              <div className="text-xs text-gray-400 mt-1">
-                                Sent {request.createdAt.toLocaleDateString()}
                               </div>
                             </div>
+                            <div className="flex space-x-2">
+                              <Button
+                                size="sm"
+                                onClick={() => onAcceptFriendRequest(request.id)}
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                <Check className="w-3 h-3 mr-1" />
+                                Accept
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => onRejectFriendRequest(request.id)}
+                                className="border-gray-300 hover:bg-gray-50"
+                              >
+                                <X className="w-3 h-3 mr-1" />
+                                Decline
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex space-x-2">
-                            <Button
-                              size="sm"
-                              onClick={() => onAcceptFriendRequest(request.id)}
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                            >
-                              <Check className="w-3 h-3 mr-1" />
-                              Accept
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => onRejectFriendRequest(request.id)}
-                              className="border-gray-300 hover:bg-gray-50"
-                            >
-                              <X className="w-3 h-3 mr-1" />
-                              Decline
-                            </Button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
+            </TabsContent>
+
+            {/* Sent Requests */}
+            <TabsContent value="sent" className="mt-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium text-gray-900">Sent Requests</h3>
+                  <div className="text-sm text-gray-500">{sentRequests.length} sent</div>
+                </div>
+                <ScrollArea className="h-96">
+                  {sentRequests.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500">No sent requests</p>
+                      <p className="text-sm text-gray-400">Requests you've sent will appear here</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {sentRequests.map((request) => {
+                        const toUser = request.addressee
+                        if (!toUser) return null
+
+                        return (
+                          <div
+                            key={request.id}
+                            className="flex items-center justify-between p-4 bg-yellow-50/50 rounded-lg border border-yellow-200/60"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <Avatar className="w-12 h-12">
+                                <AvatarImage src="/placeholder.svg" />
+                                <AvatarFallback className="bg-yellow-100 text-yellow-600 font-medium">
+                                  {toUser.username
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")
+                                    .toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-medium text-gray-900">{toUser.username}</div>
+                                <div className="text-sm text-gray-500">{toUser.email}</div>
+                                <div className="text-xs text-gray-400 mt-1">
+                                  Sent {new Date(request.created_at).toLocaleDateString()}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Badge variant="outline" className="text-yellow-600 border-yellow-200 bg-yellow-50">
+                                <Clock className="w-3 h-3 mr-1" />
+                                Pending
+                              </Badge>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => onRejectFriendRequest(request.id)}
+                                className="border-gray-300 hover:bg-gray-50 text-gray-600"
+                              >
+                                <X className="w-3 h-3 mr-1" />
+                                Cancel
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </ScrollArea>
@@ -419,9 +527,9 @@ export function FriendManagementModal({
                         >
                           <div className="flex items-center space-x-3">
                             <Avatar className="w-12 h-12">
-                              <AvatarImage src={result.avatar || "/placeholder.svg"} />
+                              <AvatarImage src="/placeholder.svg" />
                               <AvatarFallback className="bg-blue-100 text-blue-600 font-medium">
-                                {result.name
+                                {result.username
                                   .split(" ")
                                   .map((n) => n[0])
                                   .join("")
@@ -429,15 +537,9 @@ export function FriendManagementModal({
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <div className="font-medium text-gray-900">{result.name}</div>
+                              <div className="font-medium text-gray-900">{result.username}</div>
                               <div className="text-sm text-gray-500">{result.email}</div>
-                              {result.role && result.company && (
-                                <div className="text-xs text-gray-400 flex items-center mt-1">
-                                  <Building className="w-3 h-3 mr-1" />
-                                  {result.role} at {result.company}
-                                </div>
-                              )}
-                              {result.mutualFriends > 0 && (
+                              {result.mutualFriends && result.mutualFriends > 0 && (
                                 <div className="text-xs text-blue-600 mt-1">
                                   {result.mutualFriends} mutual friend{result.mutualFriends > 1 ? "s" : ""}
                                 </div>
