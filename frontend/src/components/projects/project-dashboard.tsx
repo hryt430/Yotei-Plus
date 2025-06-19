@@ -18,8 +18,7 @@ import {
   DollarSign,
   MoreHorizontal,
 } from "lucide-react"
-import type { ProjectView } from "@/types"
-// import { useProjectManagement } from "./project-management-provider"
+import type { ProjectView, ProjectStatus } from "@/types"
 import { useProject } from "@/lib/hooks/useProject"
 
 interface ProjectDashboardProps {
@@ -31,13 +30,30 @@ export function ProjectDashboard({ onCreateProject, onViewProject }: ProjectDash
   const { projects } = useProject()
   const [filter, setFilter] = useState<"all" | "active" | "completed" | "planning">("all")
 
+  // プロジェクトのステータスを計算する関数
+  const getProjectStatus = (project: ProjectView): ProjectStatus => {
+    const { stats } = project
+    if (stats.completionRate === 100) return 'completed'
+    if (stats.totalTasks === 0) return 'planning'
+    if (stats.tasksInProgress > 0 || stats.completedTasks > 0) return 'active'
+    return 'planning'
+  }
+
+  // プロジェクトの優先度を計算する関数（過去期限タスクの数に基づく）
+  const getProjectPriority = (project: ProjectView): 'HIGH' | 'MEDIUM' | 'LOW' => {
+    const { stats } = project
+    if (stats.overdueTasks > 5) return 'HIGH'
+    if (stats.overdueTasks > 0) return 'MEDIUM'
+    return 'LOW'
+  }
+
   const filteredProjects = projects.filter((project: ProjectView) => {
     if (filter === "all") return true
-    // フィルタリングは将来実装
-    return true
+    const status = getProjectStatus(project)
+    return status === filter
   })
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: ProjectStatus) => {
     switch (status) {
       case "planning":
         return "bg-blue-100 text-blue-800 border-blue-200"
@@ -47,8 +63,6 @@ export function ProjectDashboard({ onCreateProject, onViewProject }: ProjectDash
         return "bg-yellow-100 text-yellow-800 border-yellow-200"
       case "completed":
         return "bg-gray-100 text-gray-800 border-gray-200"
-      case "cancelled":
-        return "bg-red-100 text-red-800 border-red-200"
       default:
         return "bg-gray-100 text-gray-800 border-gray-200"
     }
@@ -67,26 +81,46 @@ export function ProjectDashboard({ onCreateProject, onViewProject }: ProjectDash
     }
   }
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
     })
   }
 
-  const getDaysRemaining = (endDate: Date) => {
+  // プロジェクトの残り日数を計算
+  const getDaysRemaining = (project: ProjectView): number => {
+    if (project.stats.daysRemaining !== undefined) {
+      return project.stats.daysRemaining
+    }
+    
+    // 最も遅いタスクの期限から計算
+    const latestDueDate = project.tasks
+      .filter(task => task.due_date)
+      .map(task => new Date(task.due_date!))
+      .sort((a, b) => b.getTime() - a.getTime())[0]
+    
+    if (!latestDueDate) return 0
+    
     const today = new Date()
-    const diffTime = endDate.getTime() - today.getTime()
+    const diffTime = latestDueDate.getTime() - today.getTime()
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return diffDays
   }
 
   // Calculate overview stats
   const totalProjects = projects.length
-  const activeProjects = projects.filter((p: ProjectView) => p.tasks.length > 0).length
-  const completedProjects = projects.filter((p: ProjectView) => p.stats?.completionRate === 100).length
-  const overdueProjects = projects.filter((p: ProjectView) => p.stats?.overdueTasks > 0).length
+  const activeProjects = projects.filter((p: ProjectView) => getProjectStatus(p) === 'active').length
+  const completedProjects = projects.filter((p: ProjectView) => getProjectStatus(p) === 'completed').length
+  const overdueProjects = projects.filter((p: ProjectView) => p.stats.overdueTasks > 0).length
+
+  // プロジェクトカラーを生成（ハッシュベース）
+  const getProjectColor = (projectId: string): string => {
+    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
+    const hash = projectId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    return colors[hash % colors.length]
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -159,7 +193,7 @@ export function ProjectDashboard({ onCreateProject, onViewProject }: ProjectDash
             { key: "all", label: "All Projects", count: totalProjects },
             { key: "active", label: "Active", count: activeProjects },
             { key: "completed", label: "Completed", count: completedProjects },
-            { key: "planning", label: "Planning", count: 0 },
+            { key: "planning", label: "Planning", count: projects.filter(p => getProjectStatus(p) === 'planning').length },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -189,8 +223,10 @@ export function ProjectDashboard({ onCreateProject, onViewProject }: ProjectDash
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProjects.map((project: ProjectView) => {
-              const stats = project.stats || {}
-              const daysRemaining = 0
+              const status = getProjectStatus(project)
+              const priority = getProjectPriority(project)
+              const daysRemaining = getDaysRemaining(project)
+              const projectColor = getProjectColor(project.group.id)
 
               return (
                 <Card
@@ -202,11 +238,13 @@ export function ProjectDashboard({ onCreateProject, onViewProject }: ProjectDash
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#3B82F6' }} />
-                          <CardTitle className="text-lg font-semibold text-gray-900 truncate">{project.group.name}</CardTitle>
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: projectColor }} />
+                          <CardTitle className="text-lg font-semibold text-gray-900 truncate">
+                            {project.group.name}
+                          </CardTitle>
                         </div>
                         <CardDescription className="text-sm text-gray-600 line-clamp-2">
-                          {project.group.description}
+                          {project.group.description || 'No description'}
                         </CardDescription>
                       </div>
                       <Button variant="ghost" size="sm" className="p-1">
@@ -217,11 +255,11 @@ export function ProjectDashboard({ onCreateProject, onViewProject }: ProjectDash
                   <CardContent className="space-y-4">
                     {/* Status and Priority */}
                     <div className="flex items-center justify-between">
-                      <Badge variant="outline" className={getStatusBadge('active')}>
-                        Active
+                      <Badge variant="outline" className={getStatusBadge(status)}>
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
                       </Badge>
-                      <Badge variant="outline" className={getPriorityBadge('medium')}>
-                        Medium
+                      <Badge variant="outline" className={getPriorityBadge(priority)}>
+                        {priority} Priority
                       </Badge>
                     </div>
 
@@ -229,9 +267,9 @@ export function ProjectDashboard({ onCreateProject, onViewProject }: ProjectDash
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">Progress</span>
-                        <span className="font-medium">{Math.round(stats.completionRate || 0)}%</span>
+                        <span className="font-medium">{Math.round(project.stats.completionRate)}%</span>
                       </div>
-                      <Progress value={stats.completionRate || 0} className="h-2" />
+                      <Progress value={project.stats.completionRate} className="h-2" />
                     </div>
 
                     {/* Team Members */}
@@ -262,55 +300,46 @@ export function ProjectDashboard({ onCreateProject, onViewProject }: ProjectDash
                     </div>
 
                     {/* Tasks Summary */}
-                    {stats && (
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-1">
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                            <span className="text-gray-600">
-                              {stats.completedTasks}/{stats.totalTasks}
-                            </span>
-                          </div>
-                          {stats.overdueTasks > 0 && (
-                            <div className="flex items-center space-x-1">
-                              <AlertTriangle className="w-4 h-4 text-red-600" />
-                              <span className="text-red-600">{stats.overdueTasks}</span>
-                            </div>
-                          )}
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-1">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span className="text-gray-600">
+                            {project.stats.completedTasks}/{project.stats.totalTasks}
+                          </span>
                         </div>
+                        {project.stats.overdueTasks > 0 && (
+                          <div className="flex items-center space-x-1">
+                            <AlertTriangle className="w-4 h-4 text-red-600" />
+                            <span className="text-red-600">{project.stats.overdueTasks}</span>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
 
                     {/* Timeline */}
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center space-x-1">
                         <Calendar className="w-4 h-4 text-gray-500" />
-                        <span className="text-gray-600">{new Date().toLocaleDateString()}</span>
+                        <span className="text-gray-600">{formatDate(project.group.created_at)}</span>
                       </div>
                       <div
-                        className={`flex items-center space-x-1 ${daysRemaining < 0 ? "text-red-600" : daysRemaining < 7 ? "text-yellow-600" : "text-gray-600"}`}
+                        className={`flex items-center space-x-1 ${
+                          daysRemaining < 0 
+                            ? "text-red-600" 
+                            : daysRemaining < 7 
+                            ? "text-yellow-600" 
+                            : "text-gray-600"
+                        }`}
                       >
                         <Clock className="w-4 h-4" />
                         <span>
-                          {daysRemaining < 0 ? `${Math.abs(daysRemaining)} days overdue` : `${daysRemaining} days left`}
+                          {daysRemaining < 0 
+                            ? `${Math.abs(daysRemaining)} days overdue` 
+                            : `${daysRemaining} days left`}
                         </span>
                       </div>
                     </div>
-
-                    {/* Budget */}
-                    {false && (
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center space-x-1">
-                          <DollarSign className="w-4 h-4 text-gray-500" />
-                          <span className="text-gray-600">Budget</span>
-                        </div>
-                        <span className="font-medium">
-                          $0 / $0
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Tags feature temporarily disabled */}
                   </CardContent>
                 </Card>
               )
