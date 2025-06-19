@@ -31,17 +31,11 @@ func (a *AuthService) Register(email, username, password string) (*domain.User, 
 		return nil, errors.New("email already exists")
 	}
 
-	// パスワードのハッシュ化
-	hashedPassword, err := utils.HashPassword(password)
-	if err != nil {
-		return nil, err
-	}
-
 	user := &domain.User{
 		ID:        uuid.New(),
 		Email:     email,
 		Username:  username,
-		Password:  hashedPassword,
+		Password:  password, // UserService.CreateUserでハッシュ化されるので、ここではプレーンテキストを渡す
 		Role:      "user",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),

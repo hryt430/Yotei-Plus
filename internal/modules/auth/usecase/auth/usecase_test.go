@@ -11,20 +11,9 @@ import (
 	"github.com/hryt430/Yotei+/internal/modules/auth/domain"
 	tokenService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/token"
 	userService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/user"
-	"github.com/hryt430/Yotei+/pkg/logger"
 	"github.com/hryt430/Yotei+/pkg/token"
 	"github.com/hryt430/Yotei+/pkg/utils"
 )
-
-// テスト用のサイレントロガーを作成
-func createTestLogger() *logger.Logger {
-	cfg := &logger.Config{
-		Level:       "fatal", // 何も出力しない
-		Output:      "console",
-		Development: false,
-	}
-	return logger.NewLogger(cfg)
-}
 
 // MockUserRepository はテスト用のユーザーリポジトリモック
 type MockUserRepository struct {
@@ -168,7 +157,7 @@ func TestAuthService_Register(t *testing.T) {
 						assert.Equal(t, "test@example.com", user.Email)
 						assert.Equal(t, "testuser", user.Username)
 						assert.Equal(t, "user", user.Role)
-						// AuthService.Registerでハッシュ化されているので、元のパスワードとは異なるはず
+						// UserService.CreateUserでハッシュ化されているので、元のパスワードとは異なるはず
 						assert.NotEqual(t, "password123", user.Password)
 						// ハッシュ化されたパスワードは空でないはず
 						assert.NotEmpty(t, user.Password)
@@ -236,7 +225,7 @@ func TestAuthService_Register(t *testing.T) {
 			// 実際のサービスを作成（依存関係はモックを注入）
 			userSvc, tokenSvc := createTestServices(mockUserRepo, mockTokenRepo)
 
-			// AuthServiceを作成（MockAuthRepositoryは使わない）
+			// AuthServiceを作成
 			service := NewAuthService(nil, *userSvc, *tokenSvc)
 
 			user, err := service.Register(tt.email, tt.username, tt.password)
@@ -281,7 +270,16 @@ func TestAuthService_Login(t *testing.T) {
 
 				mockUserRepo := &MockUserRepository{
 					FindUserByEmailFunc: func(email string) (*domain.User, error) {
-						return user, nil
+						if email == "test@example.com" {
+							return user, nil
+						}
+						return nil, nil
+					},
+					FindUserByIDFunc: func(id uuid.UUID) (*domain.User, error) {
+						if id == user.ID {
+							return user, nil
+						}
+						return nil, errors.New("user not found")
 					},
 					UpdateUserFunc: func(user *domain.User) error {
 						return nil
@@ -333,7 +331,10 @@ func TestAuthService_Login(t *testing.T) {
 
 				mockUserRepo := &MockUserRepository{
 					FindUserByEmailFunc: func(email string) (*domain.User, error) {
-						return user, nil
+						if email == "test@example.com" {
+							return user, nil
+						}
+						return nil, nil
 					},
 				}
 
@@ -342,6 +343,67 @@ func TestAuthService_Login(t *testing.T) {
 				return mockUserRepo, mockTokenRepo
 			},
 			expectedError: "invalid email or password",
+		},
+		{
+			name:     "user service find error",
+			email:    "test@example.com",
+			password: "password123",
+			setupMocks: func() (*MockUserRepository, *MockTokenRepository) {
+				mockUserRepo := &MockUserRepository{
+					FindUserByEmailFunc: func(email string) (*domain.User, error) {
+						return nil, errors.New("database connection error")
+					},
+				}
+
+				mockTokenRepo := &MockTokenRepository{}
+
+				return mockUserRepo, mockTokenRepo
+			},
+			expectedError: "database connection error",
+		},
+		{
+			name:     "token generation failure",
+			email:    "test@example.com",
+			password: "password123",
+			setupMocks: func() (*MockUserRepository, *MockTokenRepository) {
+				// 実際にパスワードをハッシュ化
+				hashedPassword, err := utils.HashPassword("password123")
+				assert.NoError(t, err)
+
+				user := &domain.User{
+					ID:       uuid.New(),
+					Email:    "test@example.com",
+					Username: "testuser",
+					Password: hashedPassword,
+				}
+
+				mockUserRepo := &MockUserRepository{
+					FindUserByEmailFunc: func(email string) (*domain.User, error) {
+						if email == "test@example.com" {
+							return user, nil
+						}
+						return nil, nil
+					},
+					FindUserByIDFunc: func(id uuid.UUID) (*domain.User, error) {
+						if id == user.ID {
+							return user, nil
+						}
+						return nil, errors.New("user not found")
+					},
+					UpdateUserFunc: func(user *domain.User) error {
+						return nil
+					},
+				}
+
+				mockTokenRepo := &MockTokenRepository{
+					SaveRefreshTokenFunc: func(token *domain.RefreshToken) error {
+						return errors.New("token save failed")
+					},
+				}
+
+				return mockUserRepo, mockTokenRepo
+			},
+			expectedError: "token save failed",
 		},
 	}
 
@@ -399,13 +461,19 @@ func TestAuthService_RefreshToken(t *testing.T) {
 
 				mockUserRepo := &MockUserRepository{
 					FindUserByIDFunc: func(id uuid.UUID) (*domain.User, error) {
-						return user, nil
+						if id == userID {
+							return user, nil
+						}
+						return nil, nil
 					},
 				}
 
 				mockTokenRepo := &MockTokenRepository{
 					FindRefreshTokenFunc: func(token string) (*domain.RefreshToken, error) {
-						return refreshTokenEntity, nil
+						if token == "valid_refresh_token" {
+							return refreshTokenEntity, nil
+						}
+						return nil, nil
 					},
 					RevokeRefreshTokenFunc: func(token string) error {
 						return nil
@@ -434,6 +502,61 @@ func TestAuthService_RefreshToken(t *testing.T) {
 				return mockUserRepo, mockTokenRepo
 			},
 			expectedError: "token not found",
+		},
+		{
+			name:         "refresh token is revoked",
+			refreshToken: "revoked_token",
+			setupMocks: func() (*MockUserRepository, *MockTokenRepository) {
+				revokedTime := time.Now().Add(-time.Hour)
+				refreshTokenEntity := &domain.RefreshToken{
+					ID:        uuid.New(),
+					Token:     "revoked_token",
+					UserID:    uuid.New(),
+					ExpiresAt: time.Now().Add(24 * time.Hour),
+					RevokedAt: &revokedTime,
+				}
+
+				mockUserRepo := &MockUserRepository{}
+
+				mockTokenRepo := &MockTokenRepository{
+					FindRefreshTokenFunc: func(token string) (*domain.RefreshToken, error) {
+						if token == "revoked_token" {
+							return refreshTokenEntity, nil
+						}
+						return nil, nil
+					},
+				}
+
+				return mockUserRepo, mockTokenRepo
+			},
+			expectedError: "invalid refresh token",
+		},
+		{
+			name:         "refresh token is expired",
+			refreshToken: "expired_token",
+			setupMocks: func() (*MockUserRepository, *MockTokenRepository) {
+				refreshTokenEntity := &domain.RefreshToken{
+					ID:        uuid.New(),
+					Token:     "expired_token",
+					UserID:    uuid.New(),
+					ExpiresAt: time.Now().Add(-time.Hour), // 期限切れ
+					RevokedAt: nil,
+				}
+
+				mockUserRepo := &MockUserRepository{}
+
+				mockTokenRepo := &MockTokenRepository{
+					FindRefreshTokenFunc: func(token string) (*domain.RefreshToken, error) {
+						if token == "expired_token" {
+							return refreshTokenEntity, nil
+						}
+						return nil, nil
+					},
+				}
+
+				return mockUserRepo, mockTokenRepo
+			},
+			expectedError: "refresh token expired",
 		},
 	}
 
@@ -544,6 +667,45 @@ func TestAuthService_Logout(t *testing.T) {
 			},
 			expectedError: "blacklist save failed",
 		},
+		{
+			name: "refresh token revocation failure",
+			setupMocks: func() (*MockUserRepository, *MockTokenRepository, string, string) {
+				mockUserRepo := &MockUserRepository{}
+
+				mockTokenRepo := &MockTokenRepository{
+					SaveTokenToBlacklistFunc: func(token string, ttl time.Duration) error {
+						return nil
+					},
+					RevokeRefreshTokenFunc: func(token string) error {
+						return errors.New("refresh token revocation failed")
+					},
+				}
+
+				// 実際のJWTトークンを生成
+				jwtManager := createTestJWTManager()
+				user := &domain.User{
+					ID:       uuid.New(),
+					Email:    "test@example.com",
+					Username: "testuser",
+					Role:     "user",
+				}
+
+				claims := &token.Claims{
+					UserID:   user.ID.String(),
+					Email:    user.Email,
+					Username: user.Username,
+					Role:     user.Role,
+				}
+
+				accessToken, err := jwtManager.Generate(claims, 1*time.Hour)
+				assert.NoError(t, err)
+
+				refreshToken := "valid_refresh_token"
+
+				return mockUserRepo, mockTokenRepo, accessToken, refreshToken
+			},
+			expectedError: "refresh token revocation failed",
+		},
 	}
 
 	for _, tt := range tests {
@@ -566,4 +728,96 @@ func TestAuthService_Logout(t *testing.T) {
 			}
 		})
 	}
+}
+
+// 統合テスト：フル認証フロー
+func TestAuthService_FullAuthFlow(t *testing.T) {
+	email := "integration@example.com"
+	username := "integrationuser"
+	password := "password123"
+
+	// 状態を保持するための変数
+	var storedUser *domain.User
+	var accessToken, refreshToken string
+
+	// フロー全体を通して使用するモックを作成
+	mockUserRepo := &MockUserRepository{}
+	mockTokenRepo := &MockTokenRepository{}
+
+	// 実際のサービスを作成
+	userSvc, tokenSvc := createTestServices(mockUserRepo, mockTokenRepo)
+	service := NewAuthService(nil, *userSvc, *tokenSvc)
+
+	// ステップ1: ユーザー登録
+	t.Run("register user", func(t *testing.T) {
+		// 登録時の振る舞いを設定
+		mockUserRepo.FindUserByEmailFunc = func(email string) (*domain.User, error) {
+			if storedUser != nil && storedUser.Email == email {
+				return storedUser, nil
+			}
+			return nil, nil
+		}
+
+		mockUserRepo.CreateUserFunc = func(user *domain.User) error {
+			storedUser = user
+			return nil
+		}
+
+		user, err := service.Register(email, username, password)
+		assert.NoError(t, err)
+		assert.NotNil(t, user)
+		assert.Equal(t, email, user.Email)
+		assert.Equal(t, username, user.Username)
+
+		storedUser = user
+	})
+
+	// ステップ2: ログイン
+	t.Run("login user", func(t *testing.T) {
+		// ログイン時の振る舞いを設定
+		mockUserRepo.FindUserByEmailFunc = func(email string) (*domain.User, error) {
+			if storedUser != nil && storedUser.Email == email {
+				return storedUser, nil
+			}
+			return nil, nil
+		}
+
+		mockUserRepo.FindUserByIDFunc = func(id uuid.UUID) (*domain.User, error) {
+			if storedUser != nil && storedUser.ID == id {
+				return storedUser, nil
+			}
+			return nil, errors.New("user not found")
+		}
+
+		mockUserRepo.UpdateUserFunc = func(user *domain.User) error {
+			storedUser = user
+			return nil
+		}
+
+		mockTokenRepo.SaveRefreshTokenFunc = func(token *domain.RefreshToken) error {
+			return nil
+		}
+
+		at, rt, err := service.Login(email, password)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, at)
+		assert.NotEmpty(t, rt)
+
+		accessToken = at
+		refreshToken = rt
+	})
+
+	// ステップ3: ログアウト
+	t.Run("logout user", func(t *testing.T) {
+		mockTokenRepo.SaveTokenToBlacklistFunc = func(token string, ttl time.Duration) error {
+			return nil
+		}
+
+		mockTokenRepo.RevokeRefreshTokenFunc = func(token string) error {
+			return nil
+		}
+
+		err := service.Logout(accessToken, refreshToken)
+		assert.NoError(t, err)
+	})
 }
