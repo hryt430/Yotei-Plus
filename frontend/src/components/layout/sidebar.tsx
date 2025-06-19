@@ -1,14 +1,19 @@
 "use client"
 
 import { useState } from "react"
+import { ProjectView } from "@/types"
 import { Button } from "@/components/ui/forms/button"
 import { Home, List, Plus, ChevronLeft, ChevronRight, Calendar, Search, Users } from "lucide-react"
 
 interface SidebarProps {
-  currentPage: "dashboard" | "tasks"
-  onNavigate: (page: "dashboard" | "tasks") => void
+  currentPage: "dashboard" | "tasks" | "projects" 
+  onNavigate: (page: "dashboard" | "tasks" | "projects") => void
   onCreateTask: () => void
   onAddFriend: () => void
+  onCreateProject: () => void 
+  onSelectProject: (project: ProjectView) => void  
+  projects: ProjectView[] 
+  currentProject: ProjectView | null  
 }
 
 export function Sidebar({ currentPage, onNavigate, onCreateTask, onAddFriend }: SidebarProps) {
