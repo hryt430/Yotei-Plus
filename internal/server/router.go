@@ -25,6 +25,12 @@ import (
 	taskMessaging "github.com/hryt430/Yotei+/internal/modules/task/infrastructure/messaging"
 	taskController "github.com/hryt430/Yotei+/internal/modules/task/interface/controller"
 	taskUseCase "github.com/hryt430/Yotei+/internal/modules/task/usecase"
+
+	socialController "github.com/hryt430/Yotei+/internal/modules/social/interface/controller"
+	socialUseCase "github.com/hryt430/Yotei+/internal/modules/social/usecase"
+
+	groupController "github.com/hryt430/Yotei+/internal/modules/group/interface/controller"
+	groupUseCase "github.com/hryt430/Yotei+/internal/modules/group/usecase"
 )
 
 // Dependencies は各モジュールの依存関係を格納する構造体
@@ -35,11 +41,15 @@ type Dependencies struct {
 	NotificationUseCase notificationUseCase.NotificationUseCase
 	TaskService         taskUseCase.TaskService
 	StatsService        *taskUseCase.TaskStatsService
-	WSHub               *websocket.Hub
-	TaskScheduler       *taskMessaging.TaskDueNotificationScheduler
-	MessageBroker       notificationMessaging.MessageBroker
-	Logger              logger.Logger
-	Config              *config.Config
+	// Social and Group modules
+	SocialService socialUseCase.SocialService
+	GroupService  groupUseCase.GroupService
+	// Infrastructure
+	WSHub         *websocket.Hub
+	TaskScheduler *taskMessaging.TaskDueNotificationScheduler
+	MessageBroker notificationMessaging.MessageBroker
+	Logger        logger.Logger
+	Config        *config.Config
 
 	// バックグラウンドサービス管理用
 	cancelFunc   context.CancelFunc
@@ -90,6 +100,8 @@ func SetupRouter(deps *Dependencies) *gin.Engine {
 	setupUserRoutes(api, deps)
 	setupNotificationRoutes(api, deps)
 	setupTaskRoutes(api, deps)
+	setupSocialRoutes(api, deps)
+	setupGroupRoutes(api, deps)
 
 	return router
 }
@@ -245,6 +257,79 @@ func setupTaskRoutes(router *gin.RouterGroup, deps *Dependencies) {
 			statsGroup.GET("/priority-breakdown", statsCtrl.GetPriorityBreakdown)
 		}
 	}
+}
+
+// setupSocialRoutes はソーシャルモジュールのルートをセットアップする
+func setupSocialRoutes(router *gin.RouterGroup, deps *Dependencies) {
+	// 認証ミドルウェアの初期化
+	authMw := authMiddleware.NewAuthMiddleware(deps.TokenService)
+
+	// ソーシャルコントローラの初期化
+	socialCtrl := socialController.NewSocialController(deps.SocialService, deps.Logger)
+
+	// ソーシャルルートグループ（認証が必要）
+	socialRoutes := router.Group("/social")
+	socialRoutes.Use(authMw.AuthRequired())
+	{
+		// 友達関連
+		friends := socialRoutes.Group("/friends")
+		{
+			// 友達申請
+			requests := friends.Group("/requests")
+			{
+				requests.POST("", socialCtrl.SendFriendRequest)                         // POST /social/friends/requests
+				requests.PUT("/:friendshipId/accept", socialCtrl.AcceptFriendRequest)   // PUT /social/friends/requests/{friendshipId}/accept
+				requests.PUT("/:friendshipId/decline", socialCtrl.DeclineFriendRequest) // PUT /social/friends/requests/{friendshipId}/decline
+				requests.GET("/received", socialCtrl.GetPendingRequests)                // GET /social/friends/requests/received
+				requests.GET("/sent", socialCtrl.GetSentRequests)                       // GET /social/friends/requests/sent
+			}
+
+			// 友達管理
+			friends.GET("", socialCtrl.GetFriends)                      // GET /social/friends
+			friends.DELETE("/:userId", socialCtrl.RemoveFriend)         // DELETE /social/friends/{userId}
+			friends.GET("/:userId/mutual", socialCtrl.GetMutualFriends) // GET /social/friends/{userId}/mutual
+		}
+
+		// ユーザー関連（ブロック機能）
+		users := socialRoutes.Group("/users")
+		{
+			users.POST("/:userId/block", socialCtrl.BlockUser)     // POST /social/users/{userId}/block
+			users.DELETE("/:userId/block", socialCtrl.UnblockUser) // DELETE /social/users/{userId}/block
+		}
+
+		// 招待関連
+		invitations := socialRoutes.Group("/invitations")
+		{
+			invitations.POST("", socialCtrl.CreateInvitation)                       // POST /social/invitations
+			invitations.GET("/:invitationId", socialCtrl.GetInvitation)             // GET /social/invitations/{invitationId}
+			invitations.GET("/code/:code", socialCtrl.GetInvitationByCode)          // GET /social/invitations/code/{code}
+			invitations.POST("/:code/accept", socialCtrl.AcceptInvitation)          // POST /social/invitations/{code}/accept
+			invitations.PUT("/:invitationId/decline", socialCtrl.DeclineInvitation) // PUT /social/invitations/{invitationId}/decline
+			invitations.DELETE("/:invitationId", socialCtrl.CancelInvitation)       // DELETE /social/invitations/{invitationId}
+			invitations.GET("/sent", socialCtrl.GetSentInvitations)                 // GET /social/invitations/sent
+			invitations.GET("/received", socialCtrl.GetReceivedInvitations)         // GET /social/invitations/received
+			invitations.GET("/:invitationId/url", socialCtrl.GenerateInviteURL)     // GET /social/invitations/{invitationId}/url
+		}
+
+		// 関係性
+		socialRoutes.GET("/relationships/:userId", socialCtrl.GetRelationship) // GET /social/relationships/{userId}
+	}
+}
+
+// setupGroupRoutes はグループモジュールのルートをセットアップする
+func setupGroupRoutes(router *gin.RouterGroup, deps *Dependencies) {
+	// 認証ミドルウェアの初期化
+	authMw := authMiddleware.NewAuthMiddleware(deps.TokenService)
+
+	// グループコントローラの初期化
+	groupCtrl := groupController.NewGroupController(deps.GroupService, deps.Logger)
+
+	// グループルートグループ（認証が必要）
+	groupRoutes := router.Group("/groups")
+	groupRoutes.Use(authMw.AuthRequired())
+
+	// グループコントローラのルート設定を使用
+	groupController.RegisterGroupRoutes(groupRoutes, groupCtrl)
 }
 
 // StartBackgroundServices はバックグラウンドサービスを開始する（context対応版）

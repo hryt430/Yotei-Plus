@@ -2,10 +2,13 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/google/uuid"
 	"github.com/hryt430/Yotei+/config"
+	socialDomain "github.com/hryt430/Yotei+/internal/modules/social/domain"
 
 	"github.com/hryt430/Yotei+/pkg/logger"
 	"github.com/hryt430/Yotei+/pkg/token"
@@ -39,6 +42,16 @@ import (
 	taskMessaging "github.com/hryt430/Yotei+/internal/modules/task/infrastructure/messaging"
 	taskDatabase "github.com/hryt430/Yotei+/internal/modules/task/interface/database"
 	taskUseCase "github.com/hryt430/Yotei+/internal/modules/task/usecase"
+
+	// Social module
+	socialDatabaseInfra "github.com/hryt430/Yotei+/internal/modules/social/infrastructure/database"
+	socialDatabase "github.com/hryt430/Yotei+/internal/modules/social/interface/database"
+	socialUseCase "github.com/hryt430/Yotei+/internal/modules/social/usecase"
+
+	// Group module
+	groupDatabaseInfra "github.com/hryt430/Yotei+/internal/modules/group/infrastructure/database"
+	groupDatabase "github.com/hryt430/Yotei+/internal/modules/group/interface/database"
+	groupUseCase "github.com/hryt430/Yotei+/internal/modules/group/usecase"
 )
 
 // NewDependencies は依存関係を初期化します（統一インターフェース対応版）
@@ -158,6 +171,31 @@ func NewDependencies(cfg *config.Config, log logger.Logger) (*Dependencies, erro
 		log,
 	)
 
+	// Social module dependencies
+	socialSqlHandler := socialDatabaseInfra.NewSqlHandler()
+	friendshipRepository := socialDatabase.NewFriendshipRepository(socialSqlHandler.GetConnection(), log)
+	invitationRepository := socialDatabase.NewInvitationRepository(socialSqlHandler.GetConnection(), log)
+
+	// Social event publisher (simplified for now)
+	socialEventPublisher := &SimpleSocialEventPublisher{logger: log}
+
+	// URL gateway (simplified for now)
+	urlGateway := &SimpleURLGateway{baseURL: "http://localhost:8080"}
+
+	socialService := socialUseCase.NewSocialServiceImpl(
+		friendshipRepository,
+		invitationRepository,
+		userValidator, // using the existing userValidator
+		socialEventPublisher,
+		urlGateway,
+		log,
+	)
+
+	// Group module dependencies
+	groupSqlHandler := groupDatabaseInfra.NewSqlHandler()
+	groupRepository := groupDatabase.NewGroupRepository(groupSqlHandler.GetConnection(), log)
+	groupService := groupUseCase.NewGroupService(groupRepository, userValidator, log)
+
 	// メッセージブローカーとスケジューラー
 	messageBroker := notificationMessaging.NewInMemoryMessageBroker(log)
 
@@ -176,6 +214,8 @@ func NewDependencies(cfg *config.Config, log logger.Logger) (*Dependencies, erro
 		NotificationUseCase: notificationUseCaseImpl,
 		TaskService:         *taskService,
 		StatsService:        statsService,
+		SocialService:       socialService,
+		GroupService:        groupService,
 		WSHub:               wsHub,
 		TaskScheduler:       taskScheduler,
 		MessageBroker:       messageBroker,
@@ -300,4 +340,77 @@ func (r *AuthRepositoryImpl) Logout(ctx context.Context, accessToken, refreshTok
 	}
 
 	return r.TokenService.RevokeToken(refreshToken)
+}
+
+// SimpleSocialEventPublisher は簡単なソーシャルイベントパブリッシャー実装
+type SimpleSocialEventPublisher struct {
+	logger logger.Logger
+}
+
+func (p *SimpleSocialEventPublisher) PublishFriendRequestSent(ctx context.Context, friendship *socialDomain.Friendship, message string) error {
+	p.logger.Info("Friend request sent",
+		logger.Any("friendshipID", friendship.ID),
+		logger.Any("requesterID", friendship.RequesterID),
+		logger.Any("addresseeID", friendship.AddresseeID),
+		logger.Any("message", message))
+	return nil
+}
+
+func (p *SimpleSocialEventPublisher) PublishFriendRequestAccepted(ctx context.Context, friendship *socialDomain.Friendship) error {
+	p.logger.Info("Friend request accepted",
+		logger.Any("friendshipID", friendship.ID),
+		logger.Any("requesterID", friendship.RequesterID),
+		logger.Any("addresseeID", friendship.AddresseeID))
+	return nil
+}
+
+func (p *SimpleSocialEventPublisher) PublishFriendRequestDeclined(ctx context.Context, friendship *socialDomain.Friendship) error {
+	p.logger.Info("Friend request declined",
+		logger.Any("friendshipID", friendship.ID),
+		logger.Any("requesterID", friendship.RequesterID),
+		logger.Any("addresseeID", friendship.AddresseeID))
+	return nil
+}
+
+func (p *SimpleSocialEventPublisher) PublishFriendRemoved(ctx context.Context, userID, friendID uuid.UUID) error {
+	p.logger.Info("Friend removed", logger.Any("userID", userID), logger.Any("friendID", friendID))
+	return nil
+}
+
+func (p *SimpleSocialEventPublisher) PublishUserBlocked(ctx context.Context, userID, targetID uuid.UUID) error {
+	p.logger.Info("User blocked", logger.Any("userID", userID), logger.Any("targetID", targetID))
+	return nil
+}
+
+func (p *SimpleSocialEventPublisher) PublishInvitationCreated(ctx context.Context, invitation *socialDomain.Invitation) error {
+	p.logger.Info("Invitation created",
+		logger.Any("invitationID", invitation.ID),
+		logger.Any("inviterID", invitation.InviterID),
+		logger.Any("type", invitation.Type))
+	return nil
+}
+
+func (p *SimpleSocialEventPublisher) PublishInvitationAccepted(ctx context.Context, invitation *socialDomain.Invitation) error {
+	p.logger.Info("Invitation accepted",
+		logger.Any("invitationID", invitation.ID),
+		logger.Any("inviterID", invitation.InviterID),
+		logger.Any("inviteeID", invitation.InviteeID))
+	return nil
+}
+
+func (p *SimpleSocialEventPublisher) PublishInvitationDeclined(ctx context.Context, invitation *socialDomain.Invitation) error {
+	p.logger.Info("Invitation declined",
+		logger.Any("invitationID", invitation.ID),
+		logger.Any("inviterID", invitation.InviterID),
+		logger.Any("inviteeID", invitation.InviteeID))
+	return nil
+}
+
+// SimpleURLGateway は簡単なURL生成ゲートウェイ実装
+type SimpleURLGateway struct {
+	baseURL string
+}
+
+func (g *SimpleURLGateway) GenerateInviteURL(ctx context.Context, invitationID uuid.UUID, code string) (string, error) {
+	return fmt.Sprintf("%s/invite/%s", g.baseURL, code), nil
 }
