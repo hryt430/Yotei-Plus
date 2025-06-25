@@ -188,3 +188,11 @@ func (gm *GroupMember) TransferOwnership() {
 	gm.Role = RoleOwner
 	gm.UpdatedAt = time.Now()
 }
+
+// GroupStats はグループ統計情報
+type GroupStats struct {
+	MemberCount   int `json:"member_count"`
+	TaskCount     int `json:"task_count,omitempty"`     // プロジェクトグループの場合
+	ScheduleCount int `json:"schedule_count,omitempty"` // 予定共有グループの場合
+	ActiveMembers int `json:"active_members"`           // 最近活動したメンバー数
+}

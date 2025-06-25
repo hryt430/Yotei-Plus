@@ -516,8 +516,8 @@ func (r *GroupRepository) GetMemberCount(ctx context.Context, groupID uuid.UUID)
 }
 
 // GetGroupStats はグループ統計情報を取得する
-func (r *GroupRepository) GetGroupStats(ctx context.Context, groupID uuid.UUID) (*groupUsecase.GroupStats, error) {
-	stats := &groupUsecase.GroupStats{}
+func (r *GroupRepository) GetGroupStats(ctx context.Context, groupID uuid.UUID) (*domain.GroupStats, error) {
+	stats := &domain.GroupStats{}
 
 	// メンバー数取得
 	memberCount, err := r.GetMemberCount(ctx, groupID)

@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	commonDomain "github.com/hryt430/Yotei+/internal/common/domain"
 	"github.com/hryt430/Yotei+/internal/modules/group/domain"
 	groupUsecase "github.com/hryt430/Yotei+/internal/modules/group/usecase"
 )
@@ -12,91 +11,86 @@ import (
 // === リクエストDTO ===
 
 type CreateGroupRequest struct {
-	Name        string               `json:"name" binding:"required,max=100"`
-	Description string               `json:"description" binding:"max=500"`
-	Type        string               `json:"type" binding:"required"`
+	Name        string               `json:"name" binding:"required,max=100" example:"プロジェクトチーム"`
+	Description string               `json:"description" binding:"max=500" example:"新製品開発プロジェクトのチーム"`
+	Type        string               `json:"type" binding:"required" enums:"PROJECT,SCHEDULE" example:"PROJECT"`
 	Settings    domain.GroupSettings `json:"settings"`
-}
+} // @name CreateGroupRequest
 
 type UpdateGroupRequest struct {
-	Name        *string               `json:"name,omitempty" binding:"omitempty,max=100"`
-	Description *string               `json:"description,omitempty" binding:"omitempty,max=500"`
+	Name        *string               `json:"name,omitempty" binding:"omitempty,max=100" example:"プロジェクトチーム"`
+	Description *string               `json:"description,omitempty" binding:"omitempty,max=500" example:"新製品開発プロジェクトのチーム"`
 	Settings    *domain.GroupSettings `json:"settings,omitempty"`
-}
+} // @name UpdateGroupRequest
 
 type AddMemberRequest struct {
-	UserID string `json:"user_id" binding:"required"`
-	Role   string `json:"role"`
-}
+	UserID string `json:"user_id" binding:"required" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Role   string `json:"role" enums:"OWNER,ADMIN,MEMBER" example:"MEMBER"`
+} // @name AddMemberRequest
 
 type UpdateMemberRoleRequest struct {
-	Role string `json:"role" binding:"required"`
-}
+	Role string `json:"role" binding:"required" enums:"OWNER,ADMIN,MEMBER" example:"ADMIN"`
+} // @name UpdateMemberRoleRequest
 
 // === レスポンスDTO ===
 
 type GroupResponse struct {
-	ID          uuid.UUID            `json:"id"`
-	Name        string               `json:"name"`
-	Description string               `json:"description"`
-	Type        string               `json:"type"`
-	OwnerID     uuid.UUID            `json:"owner_id"`
+	ID          uuid.UUID            `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Name        string               `json:"name" example:"プロジェクトチーム"`
+	Description string               `json:"description" example:"新製品開発プロジェクトのチーム"`
+	Type        string               `json:"type" example:"PROJECT"`
+	OwnerID     uuid.UUID            `json:"owner_id" example:"123e4567-e89b-12d3-a456-426614174000"`
 	Settings    domain.GroupSettings `json:"settings"`
-	MemberCount int                  `json:"member_count"`
-	CreatedAt   time.Time            `json:"created_at"`
-	UpdatedAt   time.Time            `json:"updated_at"`
-	Version     int                  `json:"version"`
-}
+	MemberCount int                  `json:"member_count" example:"5"`
+	CreatedAt   time.Time            `json:"created_at" example:"2024-01-01T00:00:00Z"`
+	UpdatedAt   time.Time            `json:"updated_at" example:"2024-01-01T00:00:00Z"`
+	Version     int                  `json:"version" example:"1"`
+} // @name GroupResponse
 
 type GroupWithMembersResponse struct {
 	Group   GroupResponse            `json:"group"`
 	Members []MemberWithUserResponse `json:"members"`
-	MyRole  string                   `json:"my_role"`
-}
+	MyRole  string                   `json:"my_role" example:"ADMIN"`
+} // @name GroupWithMembersResponse
 
 type MemberWithUserResponse struct {
-	ID       uuid.UUID              `json:"id"`
-	GroupID  uuid.UUID              `json:"group_id"`
-	UserID   uuid.UUID              `json:"user_id"`
-	Role     string                 `json:"role"`
-	JoinedAt time.Time              `json:"joined_at"`
-	UserInfo *commonDomain.UserInfo `json:"user_info,omitempty"`
-}
+	ID       uuid.UUID `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	GroupID  uuid.UUID `json:"group_id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	UserID   uuid.UUID `json:"user_id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Role     string    `json:"role" example:"MEMBER"`
+	JoinedAt time.Time `json:"joined_at" example:"2024-01-01T00:00:00Z"`
+	UserInfo *UserInfo `json:"user_info,omitempty"`
+} // @name MemberWithUserResponse
 
 type GroupListResponse struct {
 	Groups     []GroupResponse `json:"groups"`
 	Pagination PaginationInfo  `json:"pagination"`
-}
+} // @name GroupListResponse
 
 type MemberListResponse struct {
 	Members []MemberWithUserResponse `json:"members"`
-}
+} // @name MemberListResponse
 
 type GroupStatsResponse struct {
-	MemberCount   int `json:"member_count"`
-	TaskCount     int `json:"task_count,omitempty"`
-	ScheduleCount int `json:"schedule_count,omitempty"`
-	ActiveMembers int `json:"active_members"`
-}
+	MemberCount   int `json:"member_count" example:"5"`
+	TaskCount     int `json:"task_count,omitempty" example:"10"`
+	ScheduleCount int `json:"schedule_count,omitempty" example:"3"`
+	ActiveMembers int `json:"active_members" example:"4"`
+} // @name GroupStatsResponse
 
 type PaginationInfo struct {
-	Page       int `json:"page"`
-	PageSize   int `json:"page_size"`
-	Total      int `json:"total"`
-	TotalPages int `json:"total_pages"`
-}
+	Page       int `json:"page" example:"1"`
+	PageSize   int `json:"page_size" example:"10"`
+	Total      int `json:"total" example:"100"`
+	TotalPages int `json:"total_pages" example:"10"`
+} // @name PaginationInfo
 
-// === 共通レスポンス ===
-
-type SuccessResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-}
-
-type ErrorResponse struct {
-	Error   string `json:"error"`
-	Message string `json:"message"`
-}
+// UserInfo はユーザー基本情報
+type UserInfo struct {
+	ID       string `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Username string `json:"username" example:"user123"`
+	Email    string `json:"email" example:"user@example.com"`
+} // @name UserInfo
 
 // === 変換関数 ===
 
@@ -120,13 +114,21 @@ func ToGroupWithMembersResponse(groupWithMembers *groupUsecase.GroupWithMembers)
 
 	members := make([]MemberWithUserResponse, len(groupWithMembers.Members))
 	for i, member := range groupWithMembers.Members {
+		var userInfo *UserInfo
+		if member.UserInfo != nil {
+			userInfo = &UserInfo{
+				ID:       member.UserInfo.ID,
+				Username: member.UserInfo.Username,
+				Email:    member.UserInfo.Email,
+			}
+		}
 		members[i] = MemberWithUserResponse{
 			ID:       member.Member.ID,
 			GroupID:  member.Member.GroupID,
 			UserID:   member.Member.UserID,
 			Role:     string(member.Member.Role),
 			JoinedAt: member.Member.JoinedAt,
-			UserInfo: member.UserInfo,
+			UserInfo: userInfo,
 		}
 	}
 
@@ -162,13 +164,21 @@ func ToGroupListResponse(groups []*domain.Group, total, page, pageSize int) *Gro
 func ToMemberListResponse(members []*groupUsecase.MemberWithUserInfo) *MemberListResponse {
 	memberResponses := make([]MemberWithUserResponse, len(members))
 	for i, member := range members {
+		var userInfo *UserInfo
+		if member.UserInfo != nil {
+			userInfo = &UserInfo{
+				ID:       member.UserInfo.ID,
+				Username: member.UserInfo.Username,
+				Email:    member.UserInfo.Email,
+			}
+		}
 		memberResponses[i] = MemberWithUserResponse{
 			ID:       member.Member.ID,
 			GroupID:  member.Member.GroupID,
 			UserID:   member.Member.UserID,
 			Role:     string(member.Member.Role),
 			JoinedAt: member.Member.JoinedAt,
-			UserInfo: member.UserInfo,
+			UserInfo: userInfo,
 		}
 	}
 
@@ -177,7 +187,7 @@ func ToMemberListResponse(members []*groupUsecase.MemberWithUserInfo) *MemberLis
 	}
 }
 
-func ToGroupStatsResponse(stats *groupUsecase.GroupStats) *GroupStatsResponse {
+func ToGroupStatsResponse(stats *domain.GroupStats) *GroupStatsResponse {
 	return &GroupStatsResponse{
 		MemberCount:   stats.MemberCount,
 		TaskCount:     stats.TaskCount,
@@ -185,3 +195,18 @@ func ToGroupStatsResponse(stats *groupUsecase.GroupStats) *GroupStatsResponse {
 		ActiveMembers: stats.ActiveMembers,
 	}
 }
+
+// === 共通レスポンス ===
+
+// SuccessResponse は成功レスポンス構造体
+type SuccessResponse struct {
+	Success bool   `json:"success" example:"true"`
+	Message string `json:"message" example:"操作が正常に完了しました"`
+} // @name SuccessResponse
+
+// ErrorResponse はエラーレスポンス構造体
+type ErrorResponse struct {
+	Success bool   `json:"success" example:"false"`
+	Error   string `json:"error" example:"INVALID_REQUEST"`
+	Message string `json:"message" example:"リクエストが無効です"`
+} // @name ErrorResponse
