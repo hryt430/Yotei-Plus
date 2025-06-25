@@ -35,7 +35,7 @@ type GroupService interface {
 	// 権限・統計
 	CheckPermission(ctx context.Context, groupID, userID uuid.UUID, action GroupAction) (bool, error)
 	GetUserRole(ctx context.Context, groupID, userID uuid.UUID) (domain.MemberRole, error)
-	GetGroupStats(ctx context.Context, groupID, requesterID uuid.UUID) (*GroupStats, error)
+	GetGroupStats(ctx context.Context, groupID, requesterID uuid.UUID) (*domain.GroupStats, error)
 	GetGroupActivity(ctx context.Context, groupID uuid.UUID, days int) (*GroupActivity, error)
 }
 
@@ -137,13 +137,6 @@ type GroupRepository interface {
 
 	// 統計情報
 	GetMemberCount(ctx context.Context, groupID uuid.UUID) (int, error)
-	GetGroupStats(ctx context.Context, groupID uuid.UUID) (*GroupStats, error)
+	GetGroupStats(ctx context.Context, groupID uuid.UUID) (*domain.GroupStats, error)
 }
 
-// GroupStats はグループ統計情報
-type GroupStats struct {
-	MemberCount   int `json:"member_count"`
-	TaskCount     int `json:"task_count,omitempty"`     // プロジェクトグループの場合
-	ScheduleCount int `json:"schedule_count,omitempty"` // 予定共有グループの場合
-	ActiveMembers int `json:"active_members"`           // 最近活動したメンバー数
-}

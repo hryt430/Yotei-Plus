@@ -14,13 +14,13 @@ import (
 type groupService struct {
 	groupRepo     GroupRepository
 	userValidator commonDomain.UserValidator
-	logger        logger.Logger
+	logger        *logger.Logger
 }
 
 func NewGroupService(
 	groupRepo GroupRepository,
 	userValidator commonDomain.UserValidator,
-	logger logger.Logger,
+	logger *logger.Logger,
 ) GroupService {
 	return &groupService{
 		groupRepo:     groupRepo,
@@ -413,7 +413,7 @@ func (s *groupService) GetUserRole(ctx context.Context, groupID, userID uuid.UUI
 }
 
 // GetGroupStats はグループ統計情報を取得する
-func (s *groupService) GetGroupStats(ctx context.Context, groupID uuid.UUID, requesterID uuid.UUID) (*GroupStats, error) {
+func (s *groupService) GetGroupStats(ctx context.Context, groupID uuid.UUID, requesterID uuid.UUID) (*domain.GroupStats, error) {
 	// 権限チェック
 	hasPermission, err := s.CheckPermission(ctx, groupID, requesterID, ActionViewGroup)
 	if err != nil {
