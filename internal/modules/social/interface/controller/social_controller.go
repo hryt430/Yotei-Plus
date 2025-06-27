@@ -27,10 +27,133 @@ func NewSocialController(socialService usecase.SocialService, logger logger.Logg
 	}
 }
 
+// SendFriendRequestRequest は友達申請送信のリクエスト構造体
+type SendFriendRequestRequest struct {
+	AddresseeID string `json:"addressee_id" binding:"required" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Message     string `json:"message" binding:"max=500" example:"友達になりませんか？"`
+} // @name SendFriendRequestRequest
+
+// CreateInvitationRequest は招待作成のリクエスト構造体
+type CreateInvitationRequest struct {
+	Type         string  `json:"type" binding:"required" enums:"FRIEND,GROUP" example:"FRIEND"`
+	Method       string  `json:"method" binding:"required" enums:"IN_APP,CODE,URL" example:"CODE"`
+	Message      string  `json:"message" binding:"max=500" example:"一緒にYotei+を使いませんか？"`
+	ExpiresHours int     `json:"expires_hours" binding:"min=1,max=168" example:"168"`
+	InviteeEmail *string `json:"invitee_email,omitempty" binding:"omitempty,email" example:"friend@example.com"`
+	TargetID     *string `json:"target_id,omitempty" example:"123e4567-e89b-12d3-a456-426614174000"`
+} // @name CreateInvitationRequest
+
+// FriendshipResponse は友達関係のレスポンス構造体
+type FriendshipResponse struct {
+	ID          uuid.UUID `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	RequesterID uuid.UUID `json:"requester_id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	AddresseeID uuid.UUID `json:"addressee_id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Status      string    `json:"status" example:"PENDING"`
+	CreatedAt   string    `json:"created_at" example:"2024-01-01T00:00:00Z"`
+	UpdatedAt   string    `json:"updated_at" example:"2024-01-01T00:00:00Z"`
+	AcceptedAt  *string   `json:"accepted_at,omitempty" example:"2024-01-01T01:00:00Z"`
+	BlockedAt   *string   `json:"blocked_at,omitempty"`
+} // @name FriendshipResponse
+
+// UserInfo はユーザー基本情報
+type UserInfo struct {
+	ID       string `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Username string `json:"username" example:"user123"`
+	Email    string `json:"email" example:"user@example.com"`
+} // @name UserInfo
+
+// FriendWithUserInfoResponse はユーザー情報付き友達レスポンス
+type FriendWithUserInfoResponse struct {
+	Friendship FriendshipResponse `json:"friendship"`
+	UserInfo   *UserInfo          `json:"user_info,omitempty"`
+} // @name FriendWithUserInfoResponse
+
+// InvitationResponse は招待のレスポンス構造体
+type InvitationResponse struct {
+	ID          uuid.UUID           `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Type        string              `json:"type" example:"FRIEND"`
+	Method      string              `json:"method" example:"CODE"`
+	Status      string              `json:"status" example:"PENDING"`
+	InviterID   uuid.UUID           `json:"inviter_id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	InviteeID   *uuid.UUID          `json:"invitee_id,omitempty" example:"123e4567-e89b-12d3-a456-426614174000"`
+	InviteeInfo *domain.InviteeInfo `json:"invitee_info,omitempty"`
+	TargetID    *uuid.UUID          `json:"target_id,omitempty" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Code        string              `json:"code,omitempty" example:"abc123def456"`
+	URL         string              `json:"url,omitempty" example:"https://yotei-plus.com/invite/abc123def456"`
+	Message     string              `json:"message" example:"一緒にYotei+を使いませんか？"`
+	Metadata    map[string]string   `json:"metadata,omitempty"`
+	ExpiresAt   string              `json:"expires_at" example:"2024-01-08T00:00:00Z"`
+	CreatedAt   string              `json:"created_at" example:"2024-01-01T00:00:00Z"`
+	UpdatedAt   string              `json:"updated_at" example:"2024-01-01T00:00:00Z"`
+	AcceptedAt  *string             `json:"accepted_at,omitempty" example:"2024-01-01T01:00:00Z"`
+} // @name InvitationResponse
+
+// InvitationResultResponse は招待受諾結果のレスポンス構造体
+type InvitationResultResponse struct {
+	Success    bool                `json:"success" example:"true"`
+	Message    string              `json:"message" example:"招待を受諾しました"`
+	Friendship *FriendshipResponse `json:"friendship,omitempty"`
+	GroupID    *uuid.UUID          `json:"group_id,omitempty" example:"123e4567-e89b-12d3-a456-426614174000"`
+} // @name InvitationResultResponse
+
+// UserRelationshipResponse はユーザー間関係のレスポンス構造体
+type UserRelationshipResponse struct {
+	IsFriend        bool `json:"is_friend" example:"true"`
+	IsBlocked       bool `json:"is_blocked" example:"false"`
+	RequestSent     bool `json:"request_sent" example:"false"`
+	RequestReceived bool `json:"request_received" example:"false"`
+} // @name UserRelationshipResponse
+
+// FriendsListResponse は友達一覧のレスポンス構造体
+type FriendsListResponse struct {
+	Friends    []FriendWithUserInfoResponse `json:"friends"`
+	Pagination PaginationInfo               `json:"pagination"`
+} // @name FriendsListResponse
+
+// InviteURLResponse は招待URL生成のレスポンス構造体
+type InviteURLResponse struct {
+	URL       string `json:"url" example:"https://yotei-plus.com/invite/abc123def456"`
+	Code      string `json:"code" example:"abc123def456"`
+	ExpiresAt string `json:"expires_at" example:"2024-01-08T00:00:00Z"`
+} // @name InviteURLResponse
+
+// PaginationInfo はページング情報
+type PaginationInfo struct {
+	Page       int `json:"page" example:"1"`
+	PageSize   int `json:"page_size" example:"20"`
+	Total      int `json:"total" example:"100"`
+	TotalPages int `json:"total_pages" example:"5"`
+} // @name PaginationInfo
+
+// SuccessResponse は成功レスポンス
+type SuccessResponse struct {
+	Success bool   `json:"success" example:"true"`
+	Message string `json:"message" example:"操作が正常に完了しました"`
+} // @name SuccessResponse
+
+// ErrorResponse はエラーレスポンス
+type ErrorResponse struct {
+	Error   string `json:"error" example:"INVALID_REQUEST"`
+	Message string `json:"message" example:"リクエストが無効です"`
+} // @name ErrorResponse
+
 // === 友達関係管理 ===
 
-// SendFriendRequest は友達申請を送信する
-// POST /api/v1/social/friends/requests
+// SendFriendRequest 友達申請送信
+// @Summary      友達申請送信
+// @Description  指定されたユーザーに友達申請を送信します
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        request body SendFriendRequestRequest true "友達申請情報"
+// @Security     BearerAuth
+// @Success      201 {object} FriendshipResponse "友達申請送信成功"
+// @Failure      400 {object} ErrorResponse "リクエストが無効（自分自身への申請など）"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      404 {object} ErrorResponse "ユーザーが見つからない"
+// @Failure      409 {object} ErrorResponse "既に友達または申請済み"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/friends/requests [post]
 func (sc *SocialController) SendFriendRequest(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -90,8 +213,21 @@ func (sc *SocialController) SendFriendRequest(c *gin.Context) {
 	c.JSON(http.StatusCreated, response)
 }
 
-// AcceptFriendRequest は友達申請を承認する
-// PUT /api/v1/social/friends/requests/{friendshipId}/accept
+// AcceptFriendRequest 友達申請承認
+// @Summary      友達申請承認
+// @Description  受信した友達申請を承認します
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        friendshipId path string true "友達申請ID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Security     BearerAuth
+// @Success      200 {object} FriendshipResponse "友達申請承認成功"
+// @Failure      400 {object} ErrorResponse "友達申請IDが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      403 {object} ErrorResponse "この申請を承認する権限がない"
+// @Failure      404 {object} ErrorResponse "友達申請が見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/friends/requests/{friendshipId}/accept [put]
 func (sc *SocialController) AcceptFriendRequest(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -132,8 +268,21 @@ func (sc *SocialController) AcceptFriendRequest(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// DeclineFriendRequest は友達申請を拒否する
-// PUT /api/v1/social/friends/requests/{friendshipId}/decline
+// DeclineFriendRequest 友達申請拒否
+// @Summary      友達申請拒否
+// @Description  受信した友達申請を拒否します
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        friendshipId path string true "友達申請ID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Security     BearerAuth
+// @Success      200 {object} SuccessResponse "友達申請拒否成功"
+// @Failure      400 {object} ErrorResponse "友達申請IDが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      403 {object} ErrorResponse "この申請を拒否する権限がない"
+// @Failure      404 {object} ErrorResponse "友達申請が見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/friends/requests/{friendshipId}/decline [put]
 func (sc *SocialController) DeclineFriendRequest(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -176,8 +325,20 @@ func (sc *SocialController) DeclineFriendRequest(c *gin.Context) {
 	})
 }
 
-// RemoveFriend は友達を削除する
-// DELETE /api/v1/social/friends/{userId}
+// RemoveFriend 友達削除
+// @Summary      友達削除
+// @Description  友達関係を解除します
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        userId path string true "削除する友達のユーザーID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Security     BearerAuth
+// @Success      200 {object} SuccessResponse "友達削除成功"
+// @Failure      400 {object} ErrorResponse "ユーザーIDが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      404 {object} ErrorResponse "友達関係が見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/friends/{userId} [delete]
 func (sc *SocialController) RemoveFriend(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -222,8 +383,20 @@ func (sc *SocialController) RemoveFriend(c *gin.Context) {
 
 // === ブロック機能 ===
 
-// BlockUser はユーザーをブロックする
-// POST /api/v1/social/users/{userId}/block
+// BlockUser ユーザーブロック
+// @Summary      ユーザーブロック
+// @Description  指定されたユーザーをブロックします
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        userId path string true "ブロックするユーザーID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Security     BearerAuth
+// @Success      200 {object} SuccessResponse "ユーザーブロック成功"
+// @Failure      400 {object} ErrorResponse "ユーザーIDが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      404 {object} ErrorResponse "ユーザーが見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/users/{userId}/block [post]
 func (sc *SocialController) BlockUser(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -266,8 +439,20 @@ func (sc *SocialController) BlockUser(c *gin.Context) {
 	})
 }
 
-// UnblockUser はブロックを解除する
-// DELETE /api/v1/social/users/{userId}/block
+// UnblockUser ブロック解除
+// @Summary      ブロック解除
+// @Description  指定されたユーザーのブロックを解除します
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        userId path string true "ブロック解除するユーザーID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Security     BearerAuth
+// @Success      200 {object} SuccessResponse "ブロック解除成功"
+// @Failure      400 {object} ErrorResponse "ユーザーIDが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      404 {object} ErrorResponse "ブロック関係が見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/users/{userId}/block [delete]
 func (sc *SocialController) UnblockUser(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -312,8 +497,19 @@ func (sc *SocialController) UnblockUser(c *gin.Context) {
 
 // === 友達一覧・検索 ===
 
-// GetFriends は友達一覧を取得する
-// GET /api/v1/social/friends
+// GetFriends 友達一覧取得
+// @Summary      友達一覧取得
+// @Description  自分の友達一覧を取得します（ページング対応）
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        page query int false "ページ番号" default(1) minimum(1)
+// @Param        page_size query int false "ページサイズ" default(20) minimum(1) maximum(100)
+// @Security     BearerAuth
+// @Success      200 {object} FriendsListResponse "友達一覧取得成功"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/friends [get]
 func (sc *SocialController) GetFriends(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -342,8 +538,102 @@ func (sc *SocialController) GetFriends(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetMutualFriends は共通の友達を取得する
-// GET /api/v1/social/friends/{userId}/mutual
+// GetPendingRequests 受信した友達申請取得
+// @Summary      受信した友達申請取得
+// @Description  自分宛の友達申請一覧を取得します（ページング対応）
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        page query int false "ページ番号" default(1) minimum(1)
+// @Param        page_size query int false "ページサイズ" default(20) minimum(1) maximum(100)
+// @Security     BearerAuth
+// @Success      200 {object} dto.PendingRequestsResponse "友達申請一覧取得成功"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/friends/requests/received [get]
+func (sc *SocialController) GetPendingRequests(c *gin.Context) {
+	user, err := middleware.GetUserFromContext(c)
+	if err != nil {
+		sc.logError("get user from context", err)
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Error:   "unauthorized",
+			Message: "認証が必要です",
+		})
+		return
+	}
+
+	pagination := sc.getPaginationFromQuery(c)
+	requests, err := sc.socialService.GetPendingRequests(c.Request.Context(), user.ID, pagination)
+	if err != nil {
+		sc.logError("get pending requests", err, logger.Any("userID", user.ID))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Error:   "get_pending_requests_failed",
+			Message: "友達申請一覧の取得に失敗しました",
+		})
+		return
+	}
+
+	// TODO: 総数を取得する実装が必要
+	total := len(requests)
+	response := dto.ToPendingRequestsResponse(requests, total, pagination.Page, pagination.PageSize)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetSentRequests 送信した友達申請取得
+// @Summary      送信した友達申請取得
+// @Description  自分が送信した友達申請一覧を取得します（ページング対応）
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        page query int false "ページ番号" default(1) minimum(1)
+// @Param        page_size query int false "ページサイズ" default(20) minimum(1) maximum(100)
+// @Security     BearerAuth
+// @Success      200 {object} dto.SentRequestsResponse "送信済み申請一覧取得成功"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/friends/requests/sent [get]
+func (sc *SocialController) GetSentRequests(c *gin.Context) {
+	user, err := middleware.GetUserFromContext(c)
+	if err != nil {
+		sc.logError("get user from context", err)
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Error:   "unauthorized",
+			Message: "認証が必要です",
+		})
+		return
+	}
+
+	pagination := sc.getPaginationFromQuery(c)
+	requests, err := sc.socialService.GetSentRequests(c.Request.Context(), user.ID, pagination)
+	if err != nil {
+		sc.logError("get sent requests", err, logger.Any("userID", user.ID))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Error:   "get_sent_requests_failed",
+			Message: "送信済み申請一覧の取得に失敗しました",
+		})
+		return
+	}
+
+	// TODO: 総数を取得する実装が必要
+	total := len(requests)
+	response := dto.ToPendingRequestsResponse(requests, total, pagination.Page, pagination.PageSize)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetMutualFriends 共通の友達取得
+// @Summary      共通の友達取得
+// @Description  指定されたユーザーとの共通の友達を取得します
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        userId path string true "対象ユーザーID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Security     BearerAuth
+// @Success      200 {object} object{data=[]FriendWithUserInfoResponse} "共通の友達取得成功"
+// @Failure      400 {object} ErrorResponse "ユーザーIDが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      404 {object} ErrorResponse "ユーザーが見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/friends/{userId}/mutual [get]
 func (sc *SocialController) GetMutualFriends(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -381,70 +671,21 @@ func (sc *SocialController) GetMutualFriends(c *gin.Context) {
 	})
 }
 
-// GetPendingRequests は受信した友達申請を取得する
-// GET /api/v1/social/friends/requests/received
-func (sc *SocialController) GetPendingRequests(c *gin.Context) {
-	user, err := middleware.GetUserFromContext(c)
-	if err != nil {
-		sc.logError("get user from context", err)
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error:   "unauthorized",
-			Message: "認証が必要です",
-		})
-		return
-	}
-
-	pagination := sc.getPaginationFromQuery(c)
-	requests, err := sc.socialService.GetPendingRequests(c.Request.Context(), user.ID, pagination)
-	if err != nil {
-		sc.logError("get pending requests", err, logger.Any("userID", user.ID))
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error:   "get_pending_requests_failed",
-			Message: "友達申請一覧の取得に失敗しました",
-		})
-		return
-	}
-
-	// TODO: 総数を取得する実装が必要
-	total := len(requests)
-	response := dto.ToPendingRequestsResponse(requests, total, pagination.Page, pagination.PageSize)
-	c.JSON(http.StatusOK, response)
-}
-
-// GetSentRequests は送信した友達申請を取得する
-// GET /api/v1/social/friends/requests/sent
-func (sc *SocialController) GetSentRequests(c *gin.Context) {
-	user, err := middleware.GetUserFromContext(c)
-	if err != nil {
-		sc.logError("get user from context", err)
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error:   "unauthorized",
-			Message: "認証が必要です",
-		})
-		return
-	}
-
-	pagination := sc.getPaginationFromQuery(c)
-	requests, err := sc.socialService.GetSentRequests(c.Request.Context(), user.ID, pagination)
-	if err != nil {
-		sc.logError("get sent requests", err, logger.Any("userID", user.ID))
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error:   "get_sent_requests_failed",
-			Message: "送信済み申請一覧の取得に失敗しました",
-		})
-		return
-	}
-
-	// TODO: 総数を取得する実装が必要
-	total := len(requests)
-	response := dto.ToPendingRequestsResponse(requests, total, pagination.Page, pagination.PageSize)
-	c.JSON(http.StatusOK, response)
-}
-
 // === 招待管理 ===
 
-// CreateInvitation は招待を作成する
-// POST /api/v1/social/invitations
+// CreateInvitation 招待作成
+// @Summary      招待作成
+// @Description  友達招待またはグループ招待を作成します
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        request body CreateInvitationRequest true "招待作成情報"
+// @Security     BearerAuth
+// @Success      201 {object} InvitationResponse "招待作成成功"
+// @Failure      400 {object} ErrorResponse "リクエストが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/invitations [post]
 func (sc *SocialController) CreateInvitation(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -539,8 +780,21 @@ func (sc *SocialController) CreateInvitation(c *gin.Context) {
 	c.JSON(http.StatusCreated, response)
 }
 
-// GetInvitation は招待詳細を取得する
-// GET /api/v1/social/invitations/{invitationId}
+// GetInvitation 招待詳細取得
+// @Summary      招待詳細取得
+// @Description  招待の詳細情報を取得します（権限チェック付き）
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        invitationId path string true "招待ID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Security     BearerAuth
+// @Success      200 {object} InvitationResponse "招待詳細取得成功"
+// @Failure      400 {object} ErrorResponse "招待IDが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      403 {object} ErrorResponse "この招待を閲覧する権限がない"
+// @Failure      404 {object} ErrorResponse "招待が見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/invitations/{invitationId} [get]
 func (sc *SocialController) GetInvitation(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -593,8 +847,19 @@ func (sc *SocialController) GetInvitation(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetInvitationByCode は招待コードから招待情報を取得する
-// GET /api/v1/social/invitations/code/{code}
+// GetInvitationByCode 招待コードから招待取得
+// @Summary      招待コードから招待取得
+// @Description  招待コードを使用して招待情報を取得します（パブリック情報のみ）
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        code path string true "招待コード" example:"abc123def456"
+// @Success      200 {object} object{data=object{id=string,type=string,method=string,status=string,message=string,expires_at=string,created_at=string}} "招待情報取得成功"
+// @Failure      400 {object} ErrorResponse "招待コードが必要"
+// @Failure      404 {object} ErrorResponse "有効な招待が見つからない"
+// @Failure      410 {object} ErrorResponse "招待の有効期限が切れている"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/invitations/code/{code} [get]
 func (sc *SocialController) GetInvitationByCode(c *gin.Context) {
 	code := c.Param("code")
 	if code == "" {
@@ -656,8 +921,21 @@ func (sc *SocialController) GetInvitationByCode(c *gin.Context) {
 	})
 }
 
-// AcceptInvitation は招待を受諾する
-// POST /api/v1/social/invitations/{code}/accept
+// AcceptInvitation 招待受諾
+// @Summary      招待受諾
+// @Description  招待コードを使用して招待を受諾します
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        code path string true "招待コード" example:"abc123def456"
+// @Security     BearerAuth
+// @Success      200 {object} InvitationResultResponse "招待受諾成功"
+// @Failure      400 {object} ErrorResponse "招待コードが必要"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      404 {object} ErrorResponse "有効な招待が見つからない"
+// @Failure      410 {object} ErrorResponse "招待の有効期限が切れている"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/invitations/{code}/accept [post]
 func (sc *SocialController) AcceptInvitation(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -698,8 +976,21 @@ func (sc *SocialController) AcceptInvitation(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// DeclineInvitation は招待を拒否する
-// PUT /api/v1/social/invitations/{invitationId}/decline
+// DeclineInvitation 招待拒否
+// @Summary      招待拒否
+// @Description  受信した招待を拒否します
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        invitationId path string true "招待ID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Security     BearerAuth
+// @Success      200 {object} SuccessResponse "招待拒否成功"
+// @Failure      400 {object} ErrorResponse "招待IDが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      403 {object} ErrorResponse "この招待を拒否する権限がない"
+// @Failure      404 {object} ErrorResponse "招待が見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/invitations/{invitationId}/decline [put]
 func (sc *SocialController) DeclineInvitation(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -742,8 +1033,21 @@ func (sc *SocialController) DeclineInvitation(c *gin.Context) {
 	})
 }
 
-// CancelInvitation は招待をキャンセルする
-// DELETE /api/v1/social/invitations/{invitationId}
+// CancelInvitation 招待キャンセル
+// @Summary      招待キャンセル
+// @Description  送信した招待をキャンセルします
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        invitationId path string true "招待ID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Security     BearerAuth
+// @Success      200 {object} SuccessResponse "招待キャンセル成功"
+// @Failure      400 {object} ErrorResponse "招待IDが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      403 {object} ErrorResponse "この招待をキャンセルする権限がない"
+// @Failure      404 {object} ErrorResponse "招待が見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/invitations/{invitationId} [delete]
 func (sc *SocialController) CancelInvitation(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -786,8 +1090,19 @@ func (sc *SocialController) CancelInvitation(c *gin.Context) {
 	})
 }
 
-// GetSentInvitations は送信した招待一覧を取得する
-// GET /api/v1/social/invitations/sent
+// GetSentInvitations 送信した招待一覧取得
+// @Summary      送信した招待一覧取得
+// @Description  自分が送信した招待一覧を取得します（ページング対応）
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        page query int false "ページ番号" default(1) minimum(1)
+// @Param        page_size query int false "ページサイズ" default(20) minimum(1) maximum(100)
+// @Security     BearerAuth
+// @Success      200 {object} dto.InvitationsListResponse "送信済み招待一覧取得成功"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/invitations/sent [get]
 func (sc *SocialController) GetSentInvitations(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -816,8 +1131,19 @@ func (sc *SocialController) GetSentInvitations(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetReceivedInvitations は受信した招待一覧を取得する
-// GET /api/v1/social/invitations/received
+// GetReceivedInvitations 受信した招待一覧取得
+// @Summary      受信した招待一覧取得
+// @Description  自分が受信した招待一覧を取得します（ページング対応）
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        page query int false "ページ番号" default(1) minimum(1)
+// @Param        page_size query int false "ページサイズ" default(20) minimum(1) maximum(100)
+// @Security     BearerAuth
+// @Success      200 {object} dto.InvitationsListResponse "受信済み招待一覧取得成功"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/invitations/received [get]
 func (sc *SocialController) GetReceivedInvitations(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -846,8 +1172,21 @@ func (sc *SocialController) GetReceivedInvitations(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GenerateInviteURL は招待URLを生成する
-// GET /api/v1/social/invitations/{invitationId}/url
+// GenerateInviteURL 招待URL生成
+// @Summary      招待URL生成
+// @Description  指定された招待のURLを生成します
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        invitationId path string true "招待ID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Security     BearerAuth
+// @Success      200 {object} InviteURLResponse "招待URL生成成功"
+// @Failure      400 {object} ErrorResponse "招待IDが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      403 {object} ErrorResponse "この招待のURLを生成する権限がない"
+// @Failure      404 {object} ErrorResponse "招待が見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/invitations/{invitationId}/url [get]
 func (sc *SocialController) GenerateInviteURL(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -900,8 +1239,20 @@ func (sc *SocialController) GenerateInviteURL(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetRelationship はユーザー間の関係を取得する
-// GET /api/v1/social/relationships/{userId}
+// GetRelationship ユーザー間関係取得
+// @Summary      ユーザー間関係取得
+// @Description  指定されたユーザーとの関係性（友達、ブロック、申請状況）を取得します
+// @Tags         social
+// @Accept       json
+// @Produce      json
+// @Param        userId path string true "対象ユーザーID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Security     BearerAuth
+// @Success      200 {object} UserRelationshipResponse "関係性取得成功"
+// @Failure      400 {object} ErrorResponse "ユーザーIDが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      404 {object} ErrorResponse "ユーザーが見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /social/relationships/{userId} [get]
 func (sc *SocialController) GetRelationship(c *gin.Context) {
 	user, err := middleware.GetUserFromContext(c)
 	if err != nil {
@@ -979,5 +1330,41 @@ func (sc *SocialController) getPaginationFromQuery(c *gin.Context) commonDomain.
 	return commonDomain.Pagination{
 		Page:     page,
 		PageSize: pageSize,
+	}
+}
+
+// RegisterSocialRoutes はソーシャル関連のルートを登録する
+func RegisterSocialRoutes(router *gin.RouterGroup, controller *SocialController) {
+	social := router.Group("/social")
+	{
+		// 友達関係管理
+		social.POST("/friends/request", controller.SendFriendRequest)
+		social.PUT("/friends/requests/:friendshipId/accept", controller.AcceptFriendRequest)
+		social.PUT("/friends/requests/:friendshipId/decline", controller.DeclineFriendRequest)
+		social.DELETE("/friends/:userId", controller.RemoveFriend)
+
+		// ブロック機能
+		social.POST("/users/:userId/block", controller.BlockUser)
+		social.DELETE("/users/:userId/block", controller.UnblockUser)
+
+		// 友達一覧・検索
+		social.GET("/friends", controller.GetFriends)
+		social.GET("/friends/:userId/mutual", controller.GetMutualFriends)
+		social.GET("/friends/requests/received", controller.GetPendingRequests)
+		social.GET("/friends/requests/sent", controller.GetSentRequests)
+
+		// 招待管理
+		social.POST("/invitations", controller.CreateInvitation)
+		social.GET("/invitations/:invitationId", controller.GetInvitation)
+		social.GET("/invitations/code/:code", controller.GetInvitationByCode)
+		social.POST("/invitations/:code/accept", controller.AcceptInvitation)
+		social.PUT("/invitations/:invitationId/decline", controller.DeclineInvitation)
+		social.DELETE("/invitations/:invitationId", controller.CancelInvitation)
+		social.GET("/invitations/sent", controller.GetSentInvitations)
+		social.GET("/invitations/received", controller.GetReceivedInvitations)
+		social.GET("/invitations/:invitationId/url", controller.GenerateInviteURL)
+
+		// 関係性チェック
+		social.GET("/relationships/:userId", controller.GetRelationship)
 	}
 }
