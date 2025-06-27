@@ -18,7 +18,7 @@ type SocialServiceImpl struct {
 	userValidator  commonDomain.UserValidator
 	eventPublisher SocialEventPublisher
 	urlGateway     URLGateway
-	logger         logger.Logger
+	logger         *logger.Logger
 }
 
 // SocialEventPublisher はソーシャルイベント発行のインターフェース
@@ -45,7 +45,7 @@ func NewSocialServiceImpl(
 	userValidator commonDomain.UserValidator,
 	eventPublisher SocialEventPublisher,
 	urlGateway URLGateway,
-	logger logger.Logger,
+	logger *logger.Logger,
 ) SocialService {
 	return &SocialServiceImpl{
 		friendshipRepo: friendshipRepo,
