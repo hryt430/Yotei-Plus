@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	commonDomain "github.com/hryt430/Yotei+/internal/common/domain"
 	"github.com/hryt430/Yotei+/internal/modules/social/domain"
 	socialUsecase "github.com/hryt430/Yotei+/internal/modules/social/usecase"
 )
@@ -33,12 +32,12 @@ type UnblockUserRequest struct {
 }
 
 type CreateInvitationRequest struct {
-	Type          string  `json:"type" binding:"required,oneof=FRIEND GROUP"`
-	Method        string  `json:"method" binding:"required,oneof=IN_APP CODE URL"`
-	Message       string  `json:"message" binding:"max=500"`
-	ExpiresHours  int     `json:"expires_hours" binding:"min=1,max=168"` // 1-168時間（1週間）
-	InviteeEmail  *string `json:"invitee_email,omitempty" binding:"omitempty,email"`
-	TargetID      *string `json:"target_id,omitempty"` // Group IDなど
+	Type         string  `json:"type" binding:"required,oneof=FRIEND GROUP"`
+	Method       string  `json:"method" binding:"required,oneof=IN_APP CODE URL"`
+	Message      string  `json:"message" binding:"max=500"`
+	ExpiresHours int     `json:"expires_hours" binding:"min=1,max=168"` // 1-168時間（1週間）
+	InviteeEmail *string `json:"invitee_email,omitempty" binding:"omitempty,email"`
+	TargetID     *string `json:"target_id,omitempty"` // Group IDなど
 }
 
 type AcceptInvitationRequest struct {
@@ -52,43 +51,43 @@ type DeclineInvitationRequest struct {
 // === レスポンスDTO ===
 
 type FriendshipResponse struct {
-	ID          uuid.UUID `json:"id"`
-	RequesterID uuid.UUID `json:"requester_id"`
-	AddresseeID uuid.UUID `json:"addressee_id"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          uuid.UUID  `json:"id"`
+	RequesterID uuid.UUID  `json:"requester_id"`
+	AddresseeID uuid.UUID  `json:"addressee_id"`
+	Status      string     `json:"status"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 	AcceptedAt  *time.Time `json:"accepted_at,omitempty"`
 	BlockedAt   *time.Time `json:"blocked_at,omitempty"`
 }
 
 type FriendWithUserInfoResponse struct {
-	Friendship FriendshipResponse      `json:"friendship"`
-	UserInfo   *commonDomain.UserInfo  `json:"user_info,omitempty"`
+	Friendship FriendshipResponse `json:"friendship"`
+	UserInfo   *UserInfo          `json:"user_info,omitempty"`
 }
 
 type FriendshipWithUserInfoResponse struct {
-	Friendship FriendshipResponse      `json:"friendship"`
-	UserInfo   *commonDomain.UserInfo  `json:"user_info,omitempty"`
+	Friendship FriendshipResponse `json:"friendship"`
+	UserInfo   *UserInfo          `json:"user_info,omitempty"`
 }
 
 type InvitationResponse struct {
-	ID          uuid.UUID              `json:"id"`
-	Type        string                 `json:"type"`
-	Method      string                 `json:"method"`
-	Status      string                 `json:"status"`
-	InviterID   uuid.UUID              `json:"inviter_id"`
-	InviteeID   *uuid.UUID             `json:"invitee_id,omitempty"`
-	InviteeInfo *domain.InviteeInfo    `json:"invitee_info,omitempty"`
-	TargetID    *uuid.UUID             `json:"target_id,omitempty"`
-	Code        string                 `json:"code,omitempty"`
-	URL         string                 `json:"url,omitempty"`
-	Message     string                 `json:"message"`
-	Metadata    map[string]string      `json:"metadata,omitempty"`
-	ExpiresAt   time.Time              `json:"expires_at"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
-	AcceptedAt  *time.Time             `json:"accepted_at,omitempty"`
+	ID          uuid.UUID           `json:"id"`
+	Type        string              `json:"type"`
+	Method      string              `json:"method"`
+	Status      string              `json:"status"`
+	InviterID   uuid.UUID           `json:"inviter_id"`
+	InviteeID   *uuid.UUID          `json:"invitee_id,omitempty"`
+	InviteeInfo *domain.InviteeInfo `json:"invitee_info,omitempty"`
+	TargetID    *uuid.UUID          `json:"target_id,omitempty"`
+	Code        string              `json:"code,omitempty"`
+	URL         string              `json:"url,omitempty"`
+	Message     string              `json:"message"`
+	Metadata    map[string]string   `json:"metadata,omitempty"`
+	ExpiresAt   time.Time           `json:"expires_at"`
+	CreatedAt   time.Time           `json:"created_at"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+	AcceptedAt  *time.Time          `json:"accepted_at,omitempty"`
 }
 
 type InvitationResultResponse struct {
@@ -138,6 +137,13 @@ type PaginationInfo struct {
 	TotalPages int `json:"total_pages"`
 }
 
+// UserInfo はユーザー基本情報
+type UserInfo struct {
+	ID       string `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Username string `json:"username" example:"user123"`
+	Email    string `json:"email" example:"user@example.com"`
+} // @name UserInfo
+
 // === 共通レスポンス ===
 
 type SuccessResponse struct {
@@ -166,16 +172,32 @@ func ToFriendshipResponse(friendship *domain.Friendship) *FriendshipResponse {
 }
 
 func ToFriendWithUserInfoResponse(friend *socialUsecase.FriendWithUserInfo) *FriendWithUserInfoResponse {
+	var userInfo *UserInfo
+	if friend.UserInfo != nil {
+		userInfo = &UserInfo{
+			ID:       friend.UserInfo.ID,
+			Username: friend.UserInfo.Username,
+			Email:    friend.UserInfo.Email,
+		}
+	}
 	return &FriendWithUserInfoResponse{
 		Friendship: *ToFriendshipResponse(friend.Friendship),
-		UserInfo:   friend.UserInfo,
+		UserInfo:   userInfo,
 	}
 }
 
 func ToFriendshipWithUserInfoResponse(friendship *socialUsecase.FriendshipWithUserInfo) *FriendshipWithUserInfoResponse {
+	var userInfo *UserInfo
+	if friendship.UserInfo != nil {
+		userInfo = &UserInfo{
+			ID:       friendship.UserInfo.ID,
+			Username: friendship.UserInfo.Username,
+			Email:    friendship.UserInfo.Email,
+		}
+	}
 	return &FriendshipWithUserInfoResponse{
 		Friendship: *ToFriendshipResponse(friendship.Friendship),
-		UserInfo:   friendship.UserInfo,
+		UserInfo:   userInfo,
 	}
 }
 
@@ -205,15 +227,15 @@ func ToInvitationResultResponse(result *socialUsecase.InvitationResult) *Invitat
 		Success: result.Success,
 		Message: result.Message,
 	}
-	
+
 	if result.Friendship != nil {
 		response.Friendship = ToFriendshipResponse(result.Friendship)
 	}
-	
+
 	if result.GroupID != nil {
 		response.GroupID = result.GroupID
 	}
-	
+
 	return response
 }
 

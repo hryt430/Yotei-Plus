@@ -258,6 +258,11 @@ func (i *Invitation) AddMetadata(key, value string) {
 	i.UpdatedAt = time.Now()
 }
 
+// IsFriend は友達招待かどうかをチェック
+func (i *Invitation) IsFriend() bool {
+	return i.Type == InvitationTypeFriend
+}
+
 // エラー定義
 var (
 	ErrInvitationExpired       = errors.New("invitation has expired")
