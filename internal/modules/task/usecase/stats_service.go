@@ -28,14 +28,14 @@ type StatsRepository interface {
 type TaskStatsService struct {
 	taskRepo  TaskRepository
 	statsRepo StatsRepository
-	logger    logger.Logger
+	logger    *logger.Logger
 }
 
 // NewTaskStatsService は新しいTaskStatsServiceを作成する
 func NewTaskStatsService(
 	taskRepo TaskRepository,
 	statsRepo StatsRepository,
-	logger logger.Logger,
+	logger *logger.Logger,
 ) *TaskStatsService {
 	return &TaskStatsService{
 		taskRepo:  taskRepo,
