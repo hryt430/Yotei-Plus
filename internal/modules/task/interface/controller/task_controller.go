@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hryt430/Yotei+/internal/modules/task/domain"
 	"github.com/hryt430/Yotei+/internal/modules/task/usecase"
-	"github.com/hryt430/Yotei+/pkg/utils"
 )
 
 // TaskController はタスク関連のHTTPリクエストを処理するコントローラー
@@ -29,28 +28,84 @@ func NewTaskController(taskService usecase.TaskService) *TaskController {
 
 // TaskRequest はタスク作成/更新リクエスト
 type TaskRequest struct {
-	Title       string        `json:"title" binding:"omitempty,min=1"`
-	Description string        `json:"description"`
-	Status      string        `json:"status" binding:"omitempty,oneof=TODO IN_PROGRESS DONE"`
-	Priority    string        `json:"priority" binding:"omitempty,oneof=LOW MEDIUM HIGH"`
-	AssigneeID  *string       `json:"assignee_id"`
-	DueDate     *FlexibleTime `json:"due_date"`
-}
+	Title       string        `json:"title" binding:"omitempty,min=1" example:"重要なタスク"`
+	Description string        `json:"description" example:"タスクの詳細説明"`
+	Status      string        `json:"status" binding:"omitempty,oneof=TODO IN_PROGRESS DONE" example:"TODO"`
+	Priority    string        `json:"priority" binding:"omitempty,oneof=LOW MEDIUM HIGH" example:"HIGH"`
+	Category    string        `json:"category" binding:"omitempty,oneof=WORK PERSONAL STUDY HEALTH SHOPPING OTHER" example:"WORK"`
+	AssigneeID  *string       `json:"assignee_id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	DueDate     *time.Time `json:"due_date" format:"date-time" example:"2024-12-31T23:59:59Z"`
+} // @name TaskRequest
 
 // TaskResponse はタスクレスポンス
 type TaskResponse struct {
-	ID          string     `json:"id"`
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	Status      string     `json:"status"`
-	Priority    string     `json:"priority"`
-	AssigneeID  *string    `json:"assignee_id,omitempty"`
-	CreatedBy   string     `json:"created_by"`
-	DueDate     *time.Time `json:"due_date,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	IsOverdue   bool       `json:"is_overdue"`
-}
+	ID          string     `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Title       string     `json:"title" example:"重要なタスク"`
+	Description string     `json:"description" example:"タスクの詳細説明"`
+	Status      string     `json:"status" example:"TODO"`
+	Priority    string     `json:"priority" example:"HIGH"`
+	Category    string     `json:"category" example:"WORK"`
+	AssigneeID  *string    `json:"assignee_id,omitempty" example:"123e4567-e89b-12d3-a456-426614174000"`
+	CreatedBy   string     `json:"created_by" example:"123e4567-e89b-12d3-a456-426614174000"`
+	DueDate     *time.Time `json:"due_date,omitempty" example:"2024-12-31T23:59:59Z"`
+	IsOverdue   bool       `json:"is_overdue" example:"false"`
+	CreatedAt   time.Time  `json:"created_at" example:"2024-01-01T00:00:00Z"`
+	UpdatedAt   time.Time  `json:"updated_at" example:"2024-01-01T00:00:00Z"`
+} // @name TaskResponse
+
+// TaskCreateResponse はタスク作成レスポンス
+type TaskCreateResponse struct {
+	Success bool         `json:"success" example:"true"`
+	Message string       `json:"message" example:"Task created successfully"`
+	Data    TaskResponse `json:"data"`
+} // @name TaskCreateResponse
+
+// TaskUpdateResponse はタスク更新レスポンス
+type TaskUpdateResponse struct {
+	Success bool         `json:"success" example:"true"`
+	Message string       `json:"message" example:"Task updated successfully"`
+	Data    TaskResponse `json:"data"`
+} // @name TaskUpdateResponse
+
+// TaskGetResponse はタスク取得レスポンス
+type TaskGetResponse struct {
+	Success bool         `json:"success" example:"true"`
+	Data    TaskResponse `json:"data"`
+} // @name TaskGetResponse
+
+// TaskListResponse はタスク一覧レスポンス
+type TaskListResponse struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		Tasks      []TaskResponse `json:"tasks"`
+		TotalCount int            `json:"total_count" example:"50"`
+		Page       int            `json:"page" example:"1"`
+		PageSize   int            `json:"page_size" example:"10"`
+	} `json:"data"`
+} // @name TaskListResponse
+
+// TaskDeleteResponse はタスク削除レスポンス
+type TaskDeleteResponse struct {
+	Success bool   `json:"success" example:"true"`
+	Message string `json:"message" example:"Task deleted successfully"`
+} // @name TaskDeleteResponse
+
+// AssignTaskRequest はタスク割り当てリクエスト
+type AssignTaskRequest struct {
+	AssigneeID string `json:"assignee_id" binding:"required" example:"123e4567-e89b-12d3-a456-426614174000"`
+} // @name AssignTaskRequest
+
+// ErrorResponse はエラーレスポンス構造体
+type ErrorResponse struct {
+	Success bool   `json:"success" example:"false"`
+	Error   string `json:"error" example:"INVALID_REQUEST"`
+	Message string `json:"message" example:"リクエストが無効です"`
+} // @name ErrorResponse
+
+// ChangeStatusRequest はステータス変更リクエスト
+type ChangeStatusRequest struct {
+	Status string `json:"status" binding:"required,oneof=TODO IN_PROGRESS DONE" example:"IN_PROGRESS"`
+} // @name ChangeStatusRequest
 
 // FlexibleTime は複数の日付フォーマットに対応するカスタム型
 type FlexibleTime struct {
@@ -87,69 +142,48 @@ func (ft FlexibleTime) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ft.Time.Format(time.RFC3339))
 }
 
-// AssignTaskRequest はタスク割り当てリクエスト
-type AssignTaskRequest struct {
-	AssigneeID string `json:"assignee_id" binding:"required"`
-}
-
-// ChangeStatusRequest はステータス変更リクエスト
-type ChangeStatusRequest struct {
-	Status string `json:"status" binding:"required,oneof=TODO IN_PROGRESS DONE"`
-}
-
-// taskToResponse はドメインモデルからレスポンスモデルに変換する
-func taskToResponse(task *domain.Task) TaskResponse {
-	return TaskResponse{
-		ID:          task.ID,
-		Title:       task.Title,
-		Description: task.Description,
-		Status:      string(task.Status),
-		Priority:    string(task.Priority),
-		AssigneeID:  task.AssigneeID,
-		CreatedBy:   task.CreatedBy,
-		DueDate:     task.DueDate,
-		CreatedAt:   task.CreatedAt,
-		UpdatedAt:   task.UpdatedAt,
-		IsOverdue:   task.CheckIsOverdue(),
-	}
-}
-
-// tasksToResponse はタスクリストをレスポンス形式に変換する
-func tasksToResponse(tasks []*domain.Task) []TaskResponse {
-	var taskResponses []TaskResponse
-	for _, task := range tasks {
-		taskResponses = append(taskResponses, taskToResponse(task))
-	}
-	return taskResponses
-}
-
-// getUserIDFromContext は認証済みユーザーIDをコンテキストから取得する
-func getUserIDFromContext(ctx *gin.Context) (string, error) {
-	userID, exists := ctx.Get("user_id")
-	if !exists {
-		return "", errors.New("authentication required")
-	}
-	return userID.(string), nil
-}
-
-// CreateTask はタスクを作成するハンドラー
+// CreateTask タスク作成
+// @Summary      タスク作成
+// @Description  新しいタスクを作成します
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        request body TaskRequest true "タスク作成情報"
+// @Security     BearerAuth
+// @Success      201 {object} TaskCreateResponse "タスク作成成功"
+// @Failure      400 {object} ErrorResponse "リクエストが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks [post]
 func (c *TaskController) CreateTask(ctx *gin.Context) {
 	var req TaskRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
 	// リクエストの検証
 	if req.Title == "" {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Title is required"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Title is required",
+	})
 		return
 	}
 
 	// ユーザーID取得
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusUnauthorized, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
@@ -172,8 +206,8 @@ func (c *TaskController) CreateTask(ctx *gin.Context) {
 		return
 	}
 
-	if req.DueDate != nil && !req.DueDate.Time.IsZero() {
-		dueDate := req.DueDate.Time
+	if req.DueDate != nil && !req.DueDate.IsZero() {
+		dueDate := *req.DueDate
 		_, err = c.taskService.UpdateTask(
 			ctx,
 			task.ID,
@@ -195,7 +229,20 @@ func (c *TaskController) CreateTask(ctx *gin.Context) {
 	})
 }
 
-// GetTask はタスクを取得するハンドラー
+// GetTask タスク取得
+// @Summary      タスク取得
+// @Description  指定されたIDのタスクを取得します
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "タスクID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Security     BearerAuth
+// @Success      200 {object} TaskGetResponse "タスク取得成功"
+// @Failure      400 {object} ErrorResponse "リクエストが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      404 {object} ErrorResponse "タスクが見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/{id} [get]
 func (c *TaskController) GetTask(ctx *gin.Context) {
 	taskID := ctx.Param("id")
 
@@ -211,13 +258,31 @@ func (c *TaskController) GetTask(ctx *gin.Context) {
 	})
 }
 
-// UpdateTask はタスクを更新するハンドラー
+// UpdateTask タスク更新
+// @Summary      タスク更新
+// @Description  指定されたIDのタスクを更新します
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "タスクID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Param        request body TaskRequest true "タスク更新情報"
+// @Security     BearerAuth
+// @Success      200 {object} TaskUpdateResponse "タスク更新成功"
+// @Failure      400 {object} ErrorResponse "リクエストが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      404 {object} ErrorResponse "タスクが見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/{id} [put]
 func (c *TaskController) UpdateTask(ctx *gin.Context) {
 	taskID := ctx.Param("id")
 
 	var req TaskRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
@@ -242,8 +307,8 @@ func (c *TaskController) UpdateTask(ctx *gin.Context) {
 		priority = &p
 	}
 
-	if req.DueDate != nil && !req.DueDate.Time.IsZero() {
-		dueDate = &req.DueDate.Time
+	if req.DueDate != nil && !req.DueDate.IsZero() {
+		dueDate = req.DueDate
 	}
 
 	task, err := c.taskService.UpdateTask(
@@ -267,7 +332,20 @@ func (c *TaskController) UpdateTask(ctx *gin.Context) {
 	})
 }
 
-// DeleteTask はタスクを削除するハンドラー
+// DeleteTask タスク削除
+// @Summary      タスク削除
+// @Description  指定されたIDのタスクを削除します
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "タスクID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Security     BearerAuth
+// @Success      200 {object} TaskDeleteResponse "タスク削除成功"
+// @Failure      400 {object} ErrorResponse "リクエストが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      404 {object} ErrorResponse "タスクが見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/{id} [delete]
 func (c *TaskController) DeleteTask(ctx *gin.Context) {
 	taskID := ctx.Param("id")
 
@@ -283,7 +361,29 @@ func (c *TaskController) DeleteTask(ctx *gin.Context) {
 	})
 }
 
-// ListTasks はタスク一覧を取得するハンドラー
+// ListTasks タスク一覧取得
+// @Summary      タスク一覧取得
+// @Description  フィルタリング、ページング、ソート機能付きでタスク一覧を取得します
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        status query string false "ステータスフィルタ" Enums(TODO,IN_PROGRESS,DONE)
+// @Param        priority query string false "優先度フィルタ" Enums(LOW,MEDIUM,HIGH)
+// @Param        category query string false "カテゴリフィルタ" Enums(WORK,PERSONAL,STUDY,HEALTH,SHOPPING,OTHER)
+// @Param        assignee_id query string false "担当者IDフィルタ" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Param        created_by query string false "作成者IDフィルタ" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Param        due_date_from query string false "期限日FROM" example:"2024-01-01"
+// @Param        due_date_to query string false "期限日TO" example:"2024-12-31"
+// @Param        page query int false "ページ番号" default(1) minimum(1)
+// @Param        page_size query int false "ページサイズ" default(10) minimum(1) maximum(100)
+// @Param        sort_field query string false "ソートフィールド" Enums(created_at,updated_at,title,priority,status,due_date) default(created_at)
+// @Param        sort_direction query string false "ソート方向" Enums(ASC,DESC) default(DESC)
+// @Security     BearerAuth
+// @Success      200 {object} TaskListResponse "タスク一覧取得成功"
+// @Failure      400 {object} ErrorResponse "リクエストが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks [get]
 func (c *TaskController) ListTasks(ctx *gin.Context) {
 	// フィルタリング条件の設定
 	filter := parseListFilter(ctx)
@@ -315,13 +415,31 @@ func (c *TaskController) ListTasks(ctx *gin.Context) {
 	})
 }
 
-// AssignTask はタスクを割り当てるハンドラー
+// AssignTask タスク割り当て
+// @Summary      タスク割り当て
+// @Description  指定されたタスクをユーザーに割り当てます
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "タスクID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Param        request body AssignTaskRequest true "割り当て情報"
+// @Security     BearerAuth
+// @Success      200 {object} TaskUpdateResponse "タスク割り当て成功"
+// @Failure      400 {object} ErrorResponse "リクエストが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      404 {object} ErrorResponse "タスクまたはユーザーが見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/{id}/assign [put]
 func (c *TaskController) AssignTask(ctx *gin.Context) {
 	taskID := ctx.Param("id")
 
 	var req AssignTaskRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
@@ -338,13 +456,31 @@ func (c *TaskController) AssignTask(ctx *gin.Context) {
 	})
 }
 
-// ChangeTaskStatus はタスクのステータスを変更するハンドラー
+// ChangeTaskStatus タスクステータス変更
+// @Summary      タスクステータス変更
+// @Description  指定されたタスクのステータスを変更します
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "タスクID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Param        request body ChangeStatusRequest true "ステータス変更情報"
+// @Security     BearerAuth
+// @Success      200 {object} TaskUpdateResponse "ステータス変更成功"
+// @Failure      400 {object} ErrorResponse "リクエストが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      404 {object} ErrorResponse "タスクが見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/{id}/status [put]
 func (c *TaskController) ChangeTaskStatus(ctx *gin.Context) {
 	taskID := ctx.Param("id")
 
 	var req ChangeStatusRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
@@ -362,7 +498,17 @@ func (c *TaskController) ChangeTaskStatus(ctx *gin.Context) {
 	})
 }
 
-// GetOverdueTasks は期限切れのタスクを取得するハンドラー
+// GetOverdueTasks 期限切れタスク取得
+// @Summary      期限切れタスク取得
+// @Description  期限が過ぎているタスクの一覧を取得します
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} TaskListResponse "期限切れタスク取得成功"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/overdue [get]
 func (c *TaskController) GetOverdueTasks(ctx *gin.Context) {
 	tasks, err := c.taskService.GetOverdueTasks(ctx)
 	if err != nil {
@@ -381,11 +527,25 @@ func (c *TaskController) GetOverdueTasks(ctx *gin.Context) {
 	})
 }
 
-// GetMyTasks は現在のユーザーのタスクを取得するハンドラー
+// GetMyTasks 自分のタスク取得
+// @Summary      自分のタスク取得
+// @Description  現在認証されているユーザーに割り当てられたタスクを取得します
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} TaskListResponse "自分のタスク取得成功"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/my [get]
 func (c *TaskController) GetMyTasks(ctx *gin.Context) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusUnauthorized, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
@@ -406,7 +566,20 @@ func (c *TaskController) GetMyTasks(ctx *gin.Context) {
 	})
 }
 
-// GetUserTasks は特定のユーザーのタスクを取得するハンドラー
+// GetUserTasks 特定ユーザーのタスク取得
+// @Summary      特定ユーザーのタスク取得
+// @Description  指定されたユーザーに割り当てられたタスクを取得します
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        user_id path string true "ユーザーID" example:"123e4567-e89b-12d3-a456-426614174000"
+// @Security     BearerAuth
+// @Success      200 {object} TaskListResponse "ユーザータスク取得成功"
+// @Failure      400 {object} ErrorResponse "リクエストが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      404 {object} ErrorResponse "ユーザーが見つからない"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/user/{user_id} [get]
 func (c *TaskController) GetUserTasks(ctx *gin.Context) {
 	userID := ctx.Param("user_id")
 
@@ -427,11 +600,28 @@ func (c *TaskController) GetUserTasks(ctx *gin.Context) {
 	})
 }
 
-// SearchTasks はタスクを検索するハンドラー
+// SearchTasks タスク検索
+// @Summary      タスク検索
+// @Description  キーワードでタスクを検索します（タイトルと説明が対象）
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        q query string true "検索クエリ" example:"重要"
+// @Param        limit query int false "結果の最大数" default(20) minimum(1) maximum(100)
+// @Security     BearerAuth
+// @Success      200 {object} TaskListResponse "タスク検索成功"
+// @Failure      400 {object} ErrorResponse "検索クエリが必要"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/search [get]
 func (c *TaskController) SearchTasks(ctx *gin.Context) {
 	query := ctx.Query("q")
 	if query == "" {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Search query is required"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Search query is required",
+	})
 		return
 	}
 
@@ -460,6 +650,44 @@ func (c *TaskController) SearchTasks(ctx *gin.Context) {
 	})
 }
 
+// 以下、既存のヘルパー関数たち...
+
+// taskToResponse はドメインモデルからレスポンスモデルに変換する
+func taskToResponse(task *domain.Task) TaskResponse {
+	return TaskResponse{
+		ID:          task.ID,
+		Title:       task.Title,
+		Description: task.Description,
+		Status:      string(task.Status),
+		Priority:    string(task.Priority),
+		Category:    string(task.Category),
+		AssigneeID:  task.AssigneeID,
+		CreatedBy:   task.CreatedBy,
+		DueDate:     task.DueDate,
+		CreatedAt:   task.CreatedAt,
+		UpdatedAt:   task.UpdatedAt,
+		IsOverdue:   task.CheckIsOverdue(),
+	}
+}
+
+// tasksToResponse はタスクリストをレスポンス形式に変換する
+func tasksToResponse(tasks []*domain.Task) []TaskResponse {
+	var taskResponses []TaskResponse
+	for _, task := range tasks {
+		taskResponses = append(taskResponses, taskToResponse(task))
+	}
+	return taskResponses
+}
+
+// getUserIDFromContext は認証済みユーザーIDをコンテキストから取得する
+func getUserIDFromContext(ctx *gin.Context) (string, error) {
+	userID, exists := ctx.Get("user_id")
+	if !exists {
+		return "", errors.New("authentication required")
+	}
+	return userID.(string), nil
+}
+
 // parseListFilter はクエリパラメータからフィルタを解析する
 func parseListFilter(ctx *gin.Context) domain.ListFilter {
 	var filter domain.ListFilter
@@ -472,6 +700,11 @@ func parseListFilter(ctx *gin.Context) domain.ListFilter {
 	if priority := ctx.Query("priority"); priority != "" {
 		p := domain.Priority(priority)
 		filter.Priority = &p
+	}
+
+	if category := ctx.Query("category"); category != "" {
+		c := domain.Category(category)
+		filter.Category = &c
 	}
 
 	if assigneeID := ctx.Query("assignee_id"); assigneeID != "" {
@@ -556,10 +789,22 @@ func parseSortOptions(ctx *gin.Context) domain.SortOptions {
 func handleServiceError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, usecase.ErrTaskNotFound):
-		ctx.JSON(http.StatusNotFound, utils.ErrorResponse("Task not found"))
+		ctx.JSON(http.StatusNotFound, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Task not found",
+	})
 	case errors.Is(err, usecase.ErrInvalidParameter):
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid parameters"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Invalid parameters",
+	})
 	default:
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Internal server error"))
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Internal server error",
+	})
 	}
 }

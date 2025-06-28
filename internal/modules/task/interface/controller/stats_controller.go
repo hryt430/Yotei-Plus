@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hryt430/Yotei+/internal/modules/task/domain"
 	"github.com/hryt430/Yotei+/internal/modules/task/usecase"
-	"github.com/hryt430/Yotei+/pkg/utils"
 )
 
 // TaskStatsController はタスク統計のHTTPリクエストを処理するコントローラー
@@ -23,115 +22,272 @@ func NewTaskStatsController(statsService *usecase.TaskStatsService) *TaskStatsCo
 	}
 }
 
+// DashboardStatsData はダッシュボード統計のデータ構造
+type DashboardStatsData struct {
+	TodayStats        *DailyStatsData    `json:"today_stats"`
+	WeeklyOverview    *WeeklyStatsData   `json:"weekly_overview"`
+	UpcomingWeekTasks *WeeklyPreviewData `json:"upcoming_week_tasks"`
+	CategoryBreakdown map[string]int     `json:"category_breakdown"`
+	PriorityBreakdown map[string]int     `json:"priority_breakdown"`
+	RecentCompletions []TaskSummary      `json:"recent_completions"`
+	OverdueTasksCount int                `json:"overdue_tasks_count"`
+} // @name DashboardStatsData
+
+// DailyStatsData は日次統計のデータ構造
+type DailyStatsData struct {
+	Date            string  `json:"date" example:"2024-01-01"`
+	TotalTasks      int     `json:"total_tasks" example:"10"`
+	CompletedTasks  int     `json:"completed_tasks" example:"7"`
+	InProgressTasks int     `json:"in_progress_tasks" example:"2"`
+	TodoTasks       int     `json:"todo_tasks" example:"1"`
+	OverdueTasks    int     `json:"overdue_tasks" example:"0"`
+	CompletionRate  float64 `json:"completion_rate" example:"70.0"`
+} // @name DailyStatsData
+
+// WeeklyStatsData は週次統計のデータ構造
+type WeeklyStatsData struct {
+	WeekStart      string                     `json:"week_start" example:"2024-01-01"`
+	WeekEnd        string                     `json:"week_end" example:"2024-01-07"`
+	TotalTasks     int                        `json:"total_tasks" example:"50"`
+	CompletedTasks int                        `json:"completed_tasks" example:"35"`
+	CompletionRate float64                    `json:"completion_rate" example:"70.0"`
+	DailyStats     map[string]*DailyStatsData `json:"daily_stats"`
+} // @name WeeklyStatsData
+
+// WeeklyPreviewData は今後1週間のタスクプレビュー
+type WeeklyPreviewData struct {
+	WeekStart    string                       `json:"week_start" example:"2024-01-01"`
+	WeekEnd      string                       `json:"week_end" example:"2024-01-07"`
+	TotalTasks   int                          `json:"total_tasks" example:"15"`
+	DailyPreview map[string]*DailyPreviewData `json:"daily_preview"`
+} // @name WeeklyPreviewData
+
+// DailyPreviewData は日次のタスクプレビュー
+type DailyPreviewData struct {
+	Date       string `json:"date" example:"2024-01-01"`
+	TaskCount  int    `json:"task_count" example:"3"`
+	HasOverdue bool   `json:"has_overdue" example:"false"`
+} // @name DailyPreviewData
+
+// TaskSummary はタスクの要約情報
+type TaskSummary struct {
+	ID          string `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Title       string `json:"title" example:"重要なタスク"`
+	Status      string `json:"status" example:"DONE"`
+	CompletedAt string `json:"completed_at" example:"2024-01-01T12:00:00Z"`
+} // @name TaskSummary
+
+// ProgressLevelData は進捗レベル情報
+type ProgressLevelData struct {
+	Percentage int    `json:"percentage" example:"85"`
+	Color      string `json:"color" example:"#22c55e"`
+	Label      string `json:"label" example:"良好"`
+} // @name ProgressLevelData
+
+// CategoryBreakdownData はカテゴリ別統計
+type CategoryBreakdownData struct {
+	Count       int    `json:"count" example:"15"`
+	DisplayName string `json:"display_name" example:"仕事"`
+	Color       string `json:"color" example:"#3b82f6"`
+} // @name CategoryBreakdownData
+
+// PriorityBreakdownData は優先度別統計
+type PriorityBreakdownData struct {
+	Count       int    `json:"count" example:"8"`
+	DisplayName string `json:"display_name" example:"高"`
+	Color       string `json:"color" example:"#dc2626"`
+} // @name PriorityBreakdownData
+
 // DashboardStatsResponse はダッシュボード統計のレスポンス
 type DashboardStatsResponse struct {
-	Success bool                   `json:"success"`
-	Data    *domain.DashboardStats `json:"data"`
-}
+	Success bool               `json:"success" example:"true"`
+	Data    DashboardStatsData `json:"data"`
+} // @name DashboardStatsResponse
 
 // DailyStatsResponse は日次統計のレスポンス
 type DailyStatsResponse struct {
-	Success bool               `json:"success"`
-	Data    *domain.DailyStats `json:"data"`
-}
+	Success bool           `json:"success" example:"true"`
+	Data    DailyStatsData `json:"data"`
+} // @name DailyStatsResponse
 
 // WeeklyStatsResponse は週次統計のレスポンス
 type WeeklyStatsResponse struct {
-	Success bool                `json:"success"`
-	Data    *domain.WeeklyStats `json:"data"`
-}
+	Success bool            `json:"success" example:"true"`
+	Data    WeeklyStatsData `json:"data"`
+} // @name WeeklyStatsResponse
 
 // ProgressSummaryResponse は進捗サマリーのレスポンス
 type ProgressSummaryResponse struct {
-	Success bool                 `json:"success"`
-	Data    []*domain.DailyStats `json:"data"`
-}
+	Success bool             `json:"success" example:"true"`
+	Data    []DailyStatsData `json:"data"`
+} // @name ProgressSummaryResponse
 
 // ProgressLevelResponse は進捗レベルのレスポンス
 type ProgressLevelResponse struct {
-	Success bool                  `json:"success"`
-	Data    *domain.ProgressLevel `json:"data"`
-}
+	Success bool              `json:"success" example:"true"`
+	Data    ProgressLevelData `json:"data"`
+} // @name ProgressLevelResponse
 
-// GetDashboardStats はダッシュボード用の統計情報を取得する
+
+// GetDashboardStats ダッシュボード統計取得
+// @Summary      ダッシュボード統計取得
+// @Description  ダッシュボード表示用の包括的な統計情報を取得します
+// @Tags         stats
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} DashboardStatsResponse "ダッシュボード統計取得成功"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/stats/dashboard [get]
 func (c *TaskStatsController) GetDashboardStats(ctx *gin.Context) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusUnauthorized, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
 	stats, err := c.statsService.GetDashboardStats(ctx, userID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to get dashboard stats"))
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Failed to get dashboard stats",
+	})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, DashboardStatsResponse{
 		Success: true,
-		Data:    stats,
+		Data:    *convertDashboardStats(stats),
 	})
 }
 
-// GetTodayStats は今日の統計情報を取得する
+// GetTodayStats 今日の統計取得
+// @Summary      今日の統計取得
+// @Description  本日のタスク統計情報を取得します
+// @Tags         stats
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} DailyStatsResponse "今日の統計取得成功"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/stats/today [get]
 func (c *TaskStatsController) GetTodayStats(ctx *gin.Context) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusUnauthorized, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
 	today := time.Now()
 	stats, err := c.statsService.GetDailyStats(ctx, userID, today)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to get today stats"))
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Failed to get today stats",
+	})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, DailyStatsResponse{
 		Success: true,
-		Data:    stats,
+		Data:    *convertDailyStats(stats),
 	})
 }
 
-// GetDailyStats は指定日の統計情報を取得する
+// GetDailyStats 指定日の統計取得
+// @Summary      指定日の統計取得
+// @Description  指定された日付のタスク統計情報を取得します
+// @Tags         stats
+// @Accept       json
+// @Produce      json
+// @Param        date path string true "日付(YYYY-MM-DD形式)" example:"2024-01-01"
+// @Security     BearerAuth
+// @Success      200 {object} DailyStatsResponse "日次統計取得成功"
+// @Failure      400 {object} ErrorResponse "日付形式が無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/stats/daily/{date} [get]
 func (c *TaskStatsController) GetDailyStats(ctx *gin.Context) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusUnauthorized, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
 	// 日付パラメータの取得
 	dateStr := ctx.Param("date")
 	if dateStr == "" {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Date parameter is required"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Date parameter is required",
+	})
 		return
 	}
 
 	date, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid date format. Use YYYY-MM-DD"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Invalid date format. Use YYYY-MM-DD",
+	})
 		return
 	}
 
 	stats, err := c.statsService.GetDailyStats(ctx, userID, date)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to get daily stats"))
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Failed to get daily stats",
+	})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, DailyStatsResponse{
 		Success: true,
-		Data:    stats,
+		Data:    *convertDailyStats(stats),
 	})
 }
 
-// GetWeeklyStats は指定週の統計情報を取得する
+// GetWeeklyStats 週次統計取得
+// @Summary      週次統計取得
+// @Description  指定された週のタスク統計情報を取得します
+// @Tags         stats
+// @Accept       json
+// @Produce      json
+// @Param        date query string false "基準日付(YYYY-MM-DD形式)" example:"2024-01-01"
+// @Security     BearerAuth
+// @Success      200 {object} WeeklyStatsResponse "週次統計取得成功"
+// @Failure      400 {object} ErrorResponse "日付形式が無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/stats/weekly [get]
 func (c *TaskStatsController) GetWeeklyStats(ctx *gin.Context) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusUnauthorized, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
@@ -141,7 +297,11 @@ func (c *TaskStatsController) GetWeeklyStats(ctx *gin.Context) {
 	if dateStr != "" {
 		parsedDate, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
-			ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid date format. Use YYYY-MM-DD"))
+			ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Invalid date format. Use YYYY-MM-DD",
+	})
 			return
 		}
 		date = parsedDate
@@ -151,21 +311,41 @@ func (c *TaskStatsController) GetWeeklyStats(ctx *gin.Context) {
 
 	stats, err := c.statsService.GetWeeklyStats(ctx, userID, date)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to get weekly stats"))
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Failed to get weekly stats",
+	})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, WeeklyStatsResponse{
 		Success: true,
-		Data:    stats,
+		Data:    *convertWeeklyStats(stats),
 	})
 }
 
-// GetProgressSummary は指定期間の進捗サマリーを取得する
+// GetProgressSummary 進捗サマリー取得
+// @Summary      進捗サマリー取得
+// @Description  指定された日数分の進捗サマリーを取得します
+// @Tags         stats
+// @Accept       json
+// @Produce      json
+// @Param        days query int false "対象日数" default(7) minimum(1) maximum(365)
+// @Security     BearerAuth
+// @Success      200 {object} ProgressSummaryResponse "進捗サマリー取得成功"
+// @Failure      400 {object} ErrorResponse "パラメータが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/stats/progress-summary [get]
 func (c *TaskStatsController) GetProgressSummary(ctx *gin.Context) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusUnauthorized, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
@@ -173,34 +353,61 @@ func (c *TaskStatsController) GetProgressSummary(ctx *gin.Context) {
 	daysStr := ctx.DefaultQuery("days", "7")
 	days, err := strconv.Atoi(daysStr)
 	if err != nil || days < 1 || days > 365 {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid days parameter. Must be between 1 and 365"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Invalid days parameter. Must be between 1 and 365",
+	})
 		return
 	}
 
 	summary, err := c.statsService.GetProgressSummary(ctx, userID, days)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to get progress summary"))
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Failed to get progress summary",
+	})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, ProgressSummaryResponse{
 		Success: true,
-		Data:    summary,
+		Data:    convertDailyStatsList(summary),
 	})
 }
 
-// GetProgressLevel は進捗レベル情報を取得する
+// GetProgressLevel 進捗レベル取得
+// @Summary      進捗レベル取得
+// @Description  完了率に基づく進捗レベル情報を取得します
+// @Tags         stats
+// @Accept       json
+// @Produce      json
+// @Param        rate query number true "完了率(0-100)" example:"85.5"
+// @Security     BearerAuth
+// @Success      200 {object} ProgressLevelResponse "進捗レベル取得成功"
+// @Failure      400 {object} ErrorResponse "完了率パラメータが無効"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/stats/progress-level [get]
 func (c *TaskStatsController) GetProgressLevel(ctx *gin.Context) {
 	// 完了率パラメータの取得
 	rateStr := ctx.Query("rate")
 	if rateStr == "" {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Completion rate parameter is required"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Completion rate parameter is required",
+	})
 		return
 	}
 
 	rate, err := strconv.ParseFloat(rateStr, 64)
 	if err != nil || rate < 0 || rate > 100 {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid completion rate. Must be between 0 and 100"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Invalid completion rate. Must be between 0 and 100",
+	})
 		return
 	}
 
@@ -208,21 +415,43 @@ func (c *TaskStatsController) GetProgressLevel(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, ProgressLevelResponse{
 		Success: true,
-		Data:    &level,
+		Data: ProgressLevelData{
+			Percentage: level.Percentage,
+			Color:      string(level.Color),
+			Label:      level.Label,
+		},
 	})
 }
 
-// GetCategoryBreakdown はカテゴリ別の統計を取得する
+// GetCategoryBreakdown カテゴリ別統計取得
+// @Summary      カテゴリ別統計取得
+// @Description  タスクのカテゴリ別内訳統計を取得します
+// @Tags         stats
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} object{success=bool,data=object{WORK=CategoryBreakdownData,PERSONAL=CategoryBreakdownData}} "カテゴリ別統計取得成功"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/stats/category-breakdown [get]
 func (c *TaskStatsController) GetCategoryBreakdown(ctx *gin.Context) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusUnauthorized, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
 	breakdown, err := c.statsService.GetCategoryBreakdown(ctx, userID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to get category breakdown"))
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Failed to get category breakdown",
+	})
 		return
 	}
 
@@ -242,17 +471,35 @@ func (c *TaskStatsController) GetCategoryBreakdown(ctx *gin.Context) {
 	})
 }
 
-// GetPriorityBreakdown は優先度別の統計を取得する
+// GetPriorityBreakdown 優先度別統計取得
+// @Summary      優先度別統計取得
+// @Description  タスクの優先度別内訳統計を取得します
+// @Tags         stats
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} object{success=bool,data=object{HIGH=PriorityBreakdownData,MEDIUM=PriorityBreakdownData,LOW=PriorityBreakdownData}} "優先度別統計取得成功"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/stats/priority-breakdown [get]
 func (c *TaskStatsController) GetPriorityBreakdown(ctx *gin.Context) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusUnauthorized, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
 	breakdown, err := c.statsService.GetPriorityBreakdown(ctx, userID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to get priority breakdown"))
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Failed to get priority breakdown",
+	})
 		return
 	}
 
@@ -272,11 +519,28 @@ func (c *TaskStatsController) GetPriorityBreakdown(ctx *gin.Context) {
 	})
 }
 
-// GetMonthlyStats は月次統計を取得する
+// GetMonthlyStats 月次統計取得
+// @Summary      月次統計取得
+// @Description  指定された月のタスク統計情報を取得します
+// @Tags         stats
+// @Accept       json
+// @Produce      json
+// @Param        year query int false "年" default(2024) minimum(2000) maximum(3000)
+// @Param        month query int false "月" default(1) minimum(1) maximum(12)
+// @Security     BearerAuth
+// @Success      200 {object} WeeklyStatsResponse "月次統計取得成功"
+// @Failure      400 {object} ErrorResponse "パラメータが無効"
+// @Failure      401 {object} ErrorResponse "認証が必要"
+// @Failure      500 {object} ErrorResponse "内部サーバーエラー"
+// @Router       /tasks/stats/monthly [get]
 func (c *TaskStatsController) GetMonthlyStats(ctx *gin.Context) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusUnauthorized, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
@@ -286,13 +550,21 @@ func (c *TaskStatsController) GetMonthlyStats(ctx *gin.Context) {
 
 	year, err := strconv.Atoi(yearStr)
 	if err != nil || year < 2000 || year > 3000 {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid year parameter"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Invalid year parameter",
+	})
 		return
 	}
 
 	monthInt, err := strconv.Atoi(monthStr)
 	if err != nil || monthInt < 1 || monthInt > 12 {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid month parameter"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Invalid month parameter",
+	})
 		return
 	}
 
@@ -300,14 +572,82 @@ func (c *TaskStatsController) GetMonthlyStats(ctx *gin.Context) {
 
 	stats, err := c.statsService.GetMonthlyStats(ctx, userID, year, month)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to get monthly stats"))
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Failed to get monthly stats",
+	})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, WeeklyStatsResponse{
 		Success: true,
-		Data:    stats,
+		Data:    *convertWeeklyStats(stats),
 	})
+}
+
+// ヘルパー関数群
+func convertDashboardStats(stats *domain.DashboardStats) *DashboardStatsData {
+	return &DashboardStatsData{
+		TodayStats:        convertDailyStats(stats.TodayStats),
+		WeeklyOverview:    convertWeeklyStats(stats.WeeklyOverview),
+		UpcomingWeekTasks: convertWeeklyPreview(stats.UpcomingWeekTasks),
+		OverdueTasksCount: stats.OverdueTasksCount,
+	}
+}
+
+func convertDailyStats(stats *domain.DailyStats) *DailyStatsData {
+	return &DailyStatsData{
+		Date:            stats.Date.Format("2006-01-02"),
+		TotalTasks:      stats.TotalTasks,
+		CompletedTasks:  stats.CompletedTasks,
+		InProgressTasks: stats.InProgressTasks,
+		TodoTasks:       stats.TodoTasks,
+		OverdueTasks:    stats.OverdueTasks,
+		CompletionRate:  stats.CompletionRate,
+	}
+}
+
+func convertWeeklyStats(stats *domain.WeeklyStats) *WeeklyStatsData {
+	dailyStats := make(map[string]*DailyStatsData)
+	for key, daily := range stats.DailyStats {
+		dailyStats[key] = convertDailyStats(daily)
+	}
+
+	return &WeeklyStatsData{
+		WeekStart:      stats.WeekStart.Format("2006-01-02"),
+		WeekEnd:        stats.WeekEnd.Format("2006-01-02"),
+		TotalTasks:     stats.TotalTasks,
+		CompletedTasks: stats.CompletedTasks,
+		CompletionRate: stats.CompletionRate,
+		DailyStats:     dailyStats,
+	}
+}
+
+func convertWeeklyPreview(preview *domain.WeeklyPreview) *WeeklyPreviewData {
+	dailyPreview := make(map[string]*DailyPreviewData)
+	for key, daily := range preview.DailyPreview {
+		dailyPreview[key] = &DailyPreviewData{
+			Date:       daily.Date.Format("2006-01-02"),
+			TaskCount:  daily.TaskCount,
+			HasOverdue: daily.HasOverdue,
+		}
+	}
+
+	return &WeeklyPreviewData{
+		WeekStart:    preview.WeekStart.Format("2006-01-02"),
+		WeekEnd:      preview.WeekEnd.Format("2006-01-02"),
+		TotalTasks:   preview.TotalTasks,
+		DailyPreview: dailyPreview,
+	}
+}
+
+func convertDailyStatsList(statsList []*domain.DailyStats) []DailyStatsData {
+	result := make([]DailyStatsData, len(statsList))
+	for i, stats := range statsList {
+		result[i] = *convertDailyStats(stats)
+	}
+	return result
 }
 
 // getCategoryColor はカテゴリの色を取得する
@@ -329,8 +669,7 @@ func getCategoryColor(category domain.Category) string {
 // getPriorityColor は優先度の色を取得する
 func getPriorityColor(priority domain.Priority) string {
 	colors := map[domain.Priority]string{
-		domain.PriorityHigh: "#dc2626", // 赤
-		// domain.PriorityHigh:   "#f97316", // オレンジ
+		domain.PriorityHigh:   "#dc2626", // 赤
 		domain.PriorityMedium: "#eab308", // 黄色
 		domain.PriorityLow:    "#22c55e", // 緑
 	}
