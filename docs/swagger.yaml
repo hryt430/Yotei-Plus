@@ -1,0 +1,3778 @@
+basePath: /api/v1
+definitions:
+  AddMemberRequest:
+    properties:
+      role:
+        enum:
+        - OWNER
+        - ADMIN
+        - MEMBER
+        example: MEMBER
+        type: string
+      user_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+    required:
+    - user_id
+    type: object
+  AssignTaskRequest:
+    properties:
+      assignee_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+    required:
+    - assignee_id
+    type: object
+  CategoryBreakdownData:
+    properties:
+      color:
+        example: '#3b82f6'
+        type: string
+      count:
+        example: 15
+        type: integer
+      display_name:
+        example: 仕事
+        type: string
+    type: object
+  ChangeStatusRequest:
+    properties:
+      status:
+        enum:
+        - TODO
+        - IN_PROGRESS
+        - DONE
+        example: IN_PROGRESS
+        type: string
+    required:
+    - status
+    type: object
+  CreateGroupRequest:
+    properties:
+      description:
+        example: 新製品開発プロジェクトのチーム
+        maxLength: 500
+        type: string
+      name:
+        example: プロジェクトチーム
+        maxLength: 100
+        type: string
+      settings:
+        $ref: '#/definitions/domain.GroupSettings'
+      type:
+        enum:
+        - PROJECT
+        - SCHEDULE
+        example: PROJECT
+        type: string
+    required:
+    - name
+    - type
+    type: object
+  CreateInvitationRequest:
+    properties:
+      expires_hours:
+        example: 168
+        maximum: 168
+        minimum: 1
+        type: integer
+      invitee_email:
+        example: friend@example.com
+        type: string
+      message:
+        example: 一緒にYotei+を使いませんか？
+        maxLength: 500
+        type: string
+      method:
+        enum:
+        - IN_APP
+        - CODE
+        - URL
+        example: CODE
+        type: string
+      target_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      type:
+        enum:
+        - FRIEND
+        - GROUP
+        example: FRIEND
+        type: string
+    required:
+    - method
+    - type
+    type: object
+  CreateNotificationRequest:
+    properties:
+      channels:
+        example:
+        - '["app"'
+        - '"line"]'
+        items:
+          type: string
+        type: array
+      message:
+        example: 「重要なプロジェクト」タスクが割り当てられました
+        type: string
+      metadata:
+        additionalProperties:
+          type: string
+        example:
+          '"priority"': '"HIGH"}'
+          '{"task_id"': '"task-123"'
+        type: object
+      title:
+        example: 新しいタスクが割り当てられました
+        type: string
+      type:
+        example: TASK_ASSIGNED
+        type: string
+      user_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+    required:
+    - channels
+    - message
+    - title
+    - type
+    - user_id
+    type: object
+  CreateNotificationResponse:
+    properties:
+      data:
+        $ref: '#/definitions/NotificationResponse'
+      success:
+        example: true
+        type: boolean
+    type: object
+  DailyPreviewData:
+    properties:
+      date:
+        example: "2024-01-01"
+        type: string
+      has_overdue:
+        example: false
+        type: boolean
+      task_count:
+        example: 3
+        type: integer
+    type: object
+  DailyStatsData:
+    properties:
+      completed_tasks:
+        example: 7
+        type: integer
+      completion_rate:
+        example: 70
+        type: number
+      date:
+        example: "2024-01-01"
+        type: string
+      in_progress_tasks:
+        example: 2
+        type: integer
+      overdue_tasks:
+        example: 0
+        type: integer
+      todo_tasks:
+        example: 1
+        type: integer
+      total_tasks:
+        example: 10
+        type: integer
+    type: object
+  DailyStatsResponse:
+    properties:
+      data:
+        $ref: '#/definitions/DailyStatsData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  DashboardStatsData:
+    properties:
+      category_breakdown:
+        additionalProperties:
+          type: integer
+        type: object
+      overdue_tasks_count:
+        type: integer
+      priority_breakdown:
+        additionalProperties:
+          type: integer
+        type: object
+      recent_completions:
+        items:
+          $ref: '#/definitions/TaskSummary'
+        type: array
+      today_stats:
+        $ref: '#/definitions/DailyStatsData'
+      upcoming_week_tasks:
+        $ref: '#/definitions/WeeklyPreviewData'
+      weekly_overview:
+        $ref: '#/definitions/WeeklyStatsData'
+    type: object
+  DashboardStatsResponse:
+    properties:
+      data:
+        $ref: '#/definitions/DashboardStatsData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  ErrorResponse:
+    properties:
+      error:
+        example: INVALID_REQUEST
+        type: string
+      message:
+        example: リクエストが無効です
+        type: string
+      success:
+        example: false
+        type: boolean
+    type: object
+  FriendWithUserInfoResponse:
+    properties:
+      friendship:
+        $ref: '#/definitions/FriendshipResponse'
+      user_info:
+        $ref: '#/definitions/UserInfo'
+    type: object
+  FriendsListResponse:
+    properties:
+      friends:
+        items:
+          $ref: '#/definitions/FriendWithUserInfoResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/PaginationInfo'
+    type: object
+  FriendshipResponse:
+    properties:
+      accepted_at:
+        example: "2024-01-01T01:00:00Z"
+        type: string
+      addressee_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      blocked_at:
+        type: string
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      requester_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      status:
+        example: PENDING
+        type: string
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+    type: object
+  GetNotificationResponse:
+    properties:
+      data:
+        $ref: '#/definitions/NotificationResponse'
+      success:
+        example: true
+        type: boolean
+    type: object
+  GetUserNotificationsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/NotificationResponse'
+        type: array
+      success:
+        example: true
+        type: boolean
+    type: object
+  GroupListResponse:
+    properties:
+      groups:
+        items:
+          $ref: '#/definitions/GroupResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/PaginationInfo'
+    type: object
+  GroupResponse:
+    properties:
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      description:
+        example: 新製品開発プロジェクトのチーム
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      member_count:
+        example: 5
+        type: integer
+      name:
+        example: プロジェクトチーム
+        type: string
+      owner_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      settings:
+        $ref: '#/definitions/domain.GroupSettings'
+      type:
+        example: PROJECT
+        type: string
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      version:
+        example: 1
+        type: integer
+    type: object
+  GroupStatsResponse:
+    properties:
+      active_members:
+        example: 4
+        type: integer
+      member_count:
+        example: 5
+        type: integer
+      schedule_count:
+        example: 3
+        type: integer
+      task_count:
+        example: 10
+        type: integer
+    type: object
+  GroupWithMembersResponse:
+    properties:
+      group:
+        $ref: '#/definitions/GroupResponse'
+      members:
+        items:
+          $ref: '#/definitions/MemberWithUserResponse'
+        type: array
+      my_role:
+        example: ADMIN
+        type: string
+    type: object
+  InvitationResponse:
+    properties:
+      accepted_at:
+        example: "2024-01-01T01:00:00Z"
+        type: string
+      code:
+        example: abc123def456
+        type: string
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      expires_at:
+        example: "2024-01-08T00:00:00Z"
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      invitee_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      invitee_info:
+        $ref: '#/definitions/domain.InviteeInfo'
+      inviter_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      message:
+        example: 一緒にYotei+を使いませんか？
+        type: string
+      metadata:
+        additionalProperties:
+          type: string
+        type: object
+      method:
+        example: CODE
+        type: string
+      status:
+        example: PENDING
+        type: string
+      target_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      type:
+        example: FRIEND
+        type: string
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      url:
+        example: https://yotei-plus.com/invite/abc123def456
+        type: string
+    type: object
+  InvitationResultResponse:
+    properties:
+      friendship:
+        $ref: '#/definitions/FriendshipResponse'
+      group_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      message:
+        example: 招待を受諾しました
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  InviteURLResponse:
+    properties:
+      code:
+        example: abc123def456
+        type: string
+      expires_at:
+        example: "2024-01-08T00:00:00Z"
+        type: string
+      url:
+        example: https://yotei-plus.com/invite/abc123def456
+        type: string
+    type: object
+  LoginRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: password123
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  LoginResponse:
+    properties:
+      data:
+        properties:
+          access_token:
+            example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            type: string
+          refresh_token:
+            example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            type: string
+          token_type:
+            example: Bearer
+            type: string
+        type: object
+      message:
+        example: Login successful
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  LogoutRequest:
+    properties:
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    required:
+    - refresh_token
+    type: object
+  LogoutResponse:
+    properties:
+      message:
+        example: Logged out successfully
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  MeResponse:
+    properties:
+      data:
+        properties:
+          email:
+            example: user@example.com
+            type: string
+          role:
+            example: user
+            type: string
+          user_id:
+            example: 123e4567-e89b-12d3-a456-426614174000
+            type: string
+          username:
+            example: johndoe
+            type: string
+        type: object
+      success:
+        example: true
+        type: boolean
+    type: object
+  MemberListResponse:
+    properties:
+      members:
+        items:
+          $ref: '#/definitions/MemberWithUserResponse'
+        type: array
+    type: object
+  MemberWithUserResponse:
+    properties:
+      group_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      joined_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      role:
+        example: MEMBER
+        type: string
+      user_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      user_info:
+        $ref: '#/definitions/UserInfo'
+    type: object
+  MessageResponse:
+    properties:
+      message:
+        example: 操作が正常に完了しました
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  NotificationResponse:
+    properties:
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      message:
+        example: 「重要なプロジェクト」タスクが割り当てられました
+        type: string
+      metadata:
+        additionalProperties:
+          type: string
+        example:
+          '"priority"': '"HIGH"}'
+          '{"task_id"': '"task-123"'
+        type: object
+      sent_at:
+        example: "2024-01-01T00:05:00Z"
+        type: string
+      status:
+        example: SENT
+        type: string
+      title:
+        example: 新しいタスクが割り当てられました
+        type: string
+      type:
+        example: TASK_ASSIGNED
+        type: string
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      user_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+    type: object
+  PaginationInfo:
+    properties:
+      page:
+        example: 1
+        type: integer
+      page_size:
+        example: 20
+        type: integer
+      total:
+        example: 100
+        type: integer
+      total_pages:
+        example: 5
+        type: integer
+    type: object
+  PriorityBreakdownData:
+    properties:
+      color:
+        example: '#dc2626'
+        type: string
+      count:
+        example: 8
+        type: integer
+      display_name:
+        example: 高
+        type: string
+    type: object
+  ProgressLevelData:
+    properties:
+      color:
+        example: '#22c55e'
+        type: string
+      label:
+        example: 良好
+        type: string
+      percentage:
+        example: 85
+        type: integer
+    type: object
+  ProgressLevelResponse:
+    properties:
+      data:
+        $ref: '#/definitions/ProgressLevelData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  ProgressSummaryResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/DailyStatsData'
+        type: array
+      success:
+        example: true
+        type: boolean
+    type: object
+  RefreshTokenRequest:
+    properties:
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    required:
+    - refresh_token
+    type: object
+  RefreshTokenResponse:
+    properties:
+      data:
+        properties:
+          access_token:
+            example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            type: string
+          refresh_token:
+            example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            type: string
+          token_type:
+            example: Bearer
+            type: string
+        type: object
+      message:
+        example: Token refreshed successfully
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  RegisterRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: password123
+        minLength: 8
+        type: string
+      username:
+        example: johndoe
+        maxLength: 30
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  RegisterResponse:
+    properties:
+      data:
+        properties:
+          email:
+            example: user@example.com
+            type: string
+          user_id:
+            example: 123e4567-e89b-12d3-a456-426614174000
+            type: string
+          username:
+            example: johndoe
+            type: string
+        type: object
+      message:
+        example: User registered successfully
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  SendFriendRequestRequest:
+    properties:
+      addressee_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      message:
+        example: 友達になりませんか？
+        maxLength: 500
+        type: string
+    required:
+    - addressee_id
+    type: object
+  SuccessResponse:
+    properties:
+      message:
+        example: 操作が正常に完了しました
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  TaskCreateResponse:
+    properties:
+      data:
+        $ref: '#/definitions/TaskResponse'
+      message:
+        example: Task created successfully
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  TaskDeleteResponse:
+    properties:
+      message:
+        example: Task deleted successfully
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  TaskGetResponse:
+    properties:
+      data:
+        $ref: '#/definitions/TaskResponse'
+      success:
+        example: true
+        type: boolean
+    type: object
+  TaskListResponse:
+    properties:
+      data:
+        properties:
+          page:
+            example: 1
+            type: integer
+          page_size:
+            example: 10
+            type: integer
+          tasks:
+            items:
+              $ref: '#/definitions/TaskResponse'
+            type: array
+          total_count:
+            example: 50
+            type: integer
+        type: object
+      success:
+        example: true
+        type: boolean
+    type: object
+  TaskRequest:
+    properties:
+      assignee_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      category:
+        enum:
+        - WORK
+        - PERSONAL
+        - STUDY
+        - HEALTH
+        - SHOPPING
+        - OTHER
+        example: WORK
+        type: string
+      description:
+        example: タスクの詳細説明
+        type: string
+      due_date:
+        example: "2024-12-31T23:59:59Z"
+        format: date-time
+        type: string
+      priority:
+        enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+        example: HIGH
+        type: string
+      status:
+        enum:
+        - TODO
+        - IN_PROGRESS
+        - DONE
+        example: TODO
+        type: string
+      title:
+        example: 重要なタスク
+        minLength: 1
+        type: string
+    type: object
+  TaskResponse:
+    properties:
+      assignee_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      category:
+        example: WORK
+        type: string
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      created_by:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      description:
+        example: タスクの詳細説明
+        type: string
+      due_date:
+        example: "2024-12-31T23:59:59Z"
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      is_overdue:
+        example: false
+        type: boolean
+      priority:
+        example: HIGH
+        type: string
+      status:
+        example: TODO
+        type: string
+      title:
+        example: 重要なタスク
+        type: string
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+    type: object
+  TaskSummary:
+    properties:
+      completed_at:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      status:
+        example: DONE
+        type: string
+      title:
+        example: 重要なタスク
+        type: string
+    type: object
+  TaskUpdateResponse:
+    properties:
+      data:
+        $ref: '#/definitions/TaskResponse'
+      message:
+        example: Task updated successfully
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  UnreadCountResponse:
+    properties:
+      count:
+        example: 5
+        type: integer
+      success:
+        example: true
+        type: boolean
+    type: object
+  UpdateGroupRequest:
+    properties:
+      description:
+        example: 新製品開発プロジェクトのチーム
+        maxLength: 500
+        type: string
+      name:
+        example: プロジェクトチーム
+        maxLength: 100
+        type: string
+      settings:
+        $ref: '#/definitions/domain.GroupSettings'
+    type: object
+  UpdateMemberRoleRequest:
+    properties:
+      role:
+        enum:
+        - OWNER
+        - ADMIN
+        - MEMBER
+        example: ADMIN
+        type: string
+    required:
+    - role
+    type: object
+  UserInfo:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      username:
+        example: user123
+        type: string
+    type: object
+  UserRelationshipResponse:
+    properties:
+      is_blocked:
+        example: false
+        type: boolean
+      is_friend:
+        example: true
+        type: boolean
+      request_received:
+        example: false
+        type: boolean
+      request_sent:
+        example: false
+        type: boolean
+    type: object
+  WeeklyPreviewData:
+    properties:
+      daily_preview:
+        additionalProperties:
+          $ref: '#/definitions/DailyPreviewData'
+        type: object
+      total_tasks:
+        example: 15
+        type: integer
+      week_end:
+        example: "2024-01-07"
+        type: string
+      week_start:
+        example: "2024-01-01"
+        type: string
+    type: object
+  WeeklyStatsData:
+    properties:
+      completed_tasks:
+        example: 35
+        type: integer
+      completion_rate:
+        example: 70
+        type: number
+      daily_stats:
+        additionalProperties:
+          $ref: '#/definitions/DailyStatsData'
+        type: object
+      total_tasks:
+        example: 50
+        type: integer
+      week_end:
+        example: "2024-01-07"
+        type: string
+      week_start:
+        example: "2024-01-01"
+        type: string
+    type: object
+  WeeklyStatsResponse:
+    properties:
+      data:
+        $ref: '#/definitions/WeeklyStatsData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  domain.GroupSettings:
+    properties:
+      allow_member_invite:
+        description: メンバーの招待許可
+        type: boolean
+      allow_schedule_details:
+        type: boolean
+      default_privacy_level:
+        allOf:
+        - $ref: '#/definitions/domain.PrivacyLevel'
+        description: 予定共有グループ用
+      enable_gantt_chart:
+        description: プロジェクトグループ用
+        type: boolean
+      enable_notifications:
+        description: 通知有効
+        type: boolean
+      enable_task_dependency:
+        type: boolean
+      is_public:
+        description: 公開/非公開
+        type: boolean
+      require_approval:
+        description: 参加承認制
+        type: boolean
+    type: object
+  domain.InviteeInfo:
+    properties:
+      email:
+        type: string
+      phone:
+        type: string
+      username:
+        type: string
+    type: object
+  domain.PrivacyLevel:
+    enum:
+    - NONE
+    - BUSY
+    - TITLE
+    - DETAILS
+    type: string
+    x-enum-comments:
+      PrivacyLevelBusy: 予定ありのみ
+      PrivacyLevelDetails: 詳細まで
+      PrivacyLevelNone: 非表示
+      PrivacyLevelTitle: タイトルまで
+    x-enum-varnames:
+    - PrivacyLevelNone
+    - PrivacyLevelBusy
+    - PrivacyLevelTitle
+    - PrivacyLevelDetails
+  dto.FriendshipResponse:
+    properties:
+      accepted_at:
+        type: string
+      addressee_id:
+        type: string
+      blocked_at:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      requester_id:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.FriendshipWithUserInfoResponse:
+    properties:
+      friendship:
+        $ref: '#/definitions/dto.FriendshipResponse'
+      user_info:
+        $ref: '#/definitions/UserInfo'
+    type: object
+  dto.InvitationResponse:
+    properties:
+      accepted_at:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      invitee_id:
+        type: string
+      invitee_info:
+        $ref: '#/definitions/domain.InviteeInfo'
+      inviter_id:
+        type: string
+      message:
+        type: string
+      metadata:
+        additionalProperties:
+          type: string
+        type: object
+      method:
+        type: string
+      status:
+        type: string
+      target_id:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+  dto.InvitationsListResponse:
+    properties:
+      invitations:
+        items:
+          $ref: '#/definitions/dto.InvitationResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/internal_modules_social_interface_dto.PaginationInfo'
+    type: object
+  dto.PendingRequestsResponse:
+    properties:
+      pagination:
+        $ref: '#/definitions/internal_modules_social_interface_dto.PaginationInfo'
+      requests:
+        items:
+          $ref: '#/definitions/dto.FriendshipWithUserInfoResponse'
+        type: array
+    type: object
+  dto.SentRequestsResponse:
+    properties:
+      pagination:
+        $ref: '#/definitions/internal_modules_social_interface_dto.PaginationInfo'
+      requests:
+        items:
+          $ref: '#/definitions/dto.FriendshipWithUserInfoResponse'
+        type: array
+    type: object
+  internal_modules_social_interface_dto.PaginationInfo:
+    properties:
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@yotei-plus.example.com
+    name: Yotei+ API Support
+    url: https://yotei-plus.example.com/support
+  description: "高機能タスク管理システムのREST API\n\n## 概要\nYotei+は、個人およびチーム向けの包括的なタスク管理システムです。\n\n##
+    主要機能\n- \U0001F510 **認証・認可**: JWT ベースの安全な認証システム\n- \U0001F4CB **タスク管理**: 作成、更新、削除、割り当て機能\n-
+    \U0001F4CA **統計・分析**: 詳細な進捗統計とダッシュボード\n- \U0001F514 **通知システム**: リアルタイム通知機能\n-
+    \U0001F465 **ユーザー管理**: プロフィール管理と権限制御\n\n## 認証方法\nこのAPIはJWTトークンベースの認証を使用します。\n1.
+    `/api/v1/auth/login` でログインしてアクセストークンを取得\n2. 保護されたエンドポイントには `Authorization: Bearer
+    <token>` ヘッダーを付与"
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://yotei-plus.example.com/terms
+  title: Yotei+ Task Management API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: メールアドレスとパスワードでログインし、アクセストークンとリフレッシュトークンを取得します
+      parameters:
+      - description: ログイン情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ログイン成功
+          schema:
+            $ref: '#/definitions/LoginResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証情報が無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: ユーザーログイン
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: 現在のセッションを終了し、トークンを無効化します
+      parameters:
+      - description: リフレッシュトークン（Cookieからも取得可能）
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ログアウト成功
+          schema:
+            $ref: '#/definitions/LogoutResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: ユーザーログアウト
+      tags:
+      - auth
+  /auth/me:
+    get:
+      consumes:
+      - application/json
+      description: 認証済みユーザーの詳細情報を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ユーザー情報取得成功
+          schema:
+            $ref: '#/definitions/MeResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 現在のユーザー情報取得
+      tags:
+      - auth
+  /auth/refresh-token:
+    post:
+      consumes:
+      - application/json
+      description: リフレッシュトークンを使用して新しいアクセストークンを取得します
+      parameters:
+      - description: リフレッシュトークン（Cookieからも取得可能）
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: トークン更新成功
+          schema:
+            $ref: '#/definitions/RefreshTokenResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: トークンが無効または期限切れ
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: アクセストークン更新
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: 新しいユーザーアカウントを作成します
+      parameters:
+      - description: ユーザー登録情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: ユーザー登録成功
+          schema:
+            $ref: '#/definitions/RegisterResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: ユーザーが既に存在
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: ユーザー登録
+      tags:
+      - auth
+  /groups:
+    post:
+      consumes:
+      - application/json
+      description: 新しいグループを作成します（プロジェクト管理用または予定共有用）
+      parameters:
+      - description: グループ作成情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/CreateGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: グループ作成成功
+          schema:
+            $ref: '#/definitions/GroupResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: グループ作成
+      tags:
+      - groups
+  /groups/{groupId}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたIDのグループを削除します（オーナーのみ）
+      parameters:
+      - description: グループID
+        in: path
+        name: groupId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: グループ削除成功
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: グループIDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: 権限不足（オーナーのみ削除可能）
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: グループが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: グループ削除
+      tags:
+      - groups
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDのグループの詳細情報とメンバー一覧を取得します
+      parameters:
+      - description: グループID
+        in: path
+        name: groupId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: グループ詳細取得成功
+          schema:
+            $ref: '#/definitions/GroupWithMembersResponse'
+        "400":
+          description: グループIDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: グループが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: グループ詳細取得
+      tags:
+      - groups
+    put:
+      consumes:
+      - application/json
+      description: 指定されたIDのグループ情報を更新します（管理者のみ）
+      parameters:
+      - description: グループID
+        in: path
+        name: groupId
+        required: true
+        type: string
+      - description: グループ更新情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/UpdateGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: グループ更新成功
+          schema:
+            $ref: '#/definitions/GroupResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: 権限不足
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: グループが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: グループ更新
+      tags:
+      - groups
+  /groups/{groupId}/members:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたグループのメンバー一覧を取得します（ページング対応）
+      parameters:
+      - description: グループID
+        in: path
+        name: groupId
+        required: true
+        type: string
+      - default: 1
+        description: ページ番号
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: ページサイズ
+        in: query
+        maximum: 100
+        minimum: 1
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: メンバー一覧取得成功
+          schema:
+            $ref: '#/definitions/MemberListResponse'
+        "400":
+          description: グループIDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: グループへのアクセス権限なし
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: グループが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: メンバー一覧取得
+      tags:
+      - groups
+    post:
+      consumes:
+      - application/json
+      description: 指定されたグループにメンバーを追加します（管理者のみ）
+      parameters:
+      - description: グループID
+        in: path
+        name: groupId
+        required: true
+        type: string
+      - description: メンバー追加情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/AddMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: メンバー追加成功
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: 権限不足
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: グループまたはユーザーが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: 既にメンバー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: メンバー追加
+      tags:
+      - groups
+  /groups/{groupId}/members/{userId}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたグループからメンバーを削除します（管理者のみ、または自分自身の脱退）
+      parameters:
+      - description: グループID
+        in: path
+        name: groupId
+        required: true
+        type: string
+      - description: 削除するユーザーID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: メンバー削除成功
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: IDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: 権限不足
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: グループまたはユーザーが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: メンバー削除
+      tags:
+      - groups
+  /groups/{groupId}/members/{userId}/role:
+    put:
+      consumes:
+      - application/json
+      description: 指定されたメンバーの権限を変更します（管理者のみ）
+      parameters:
+      - description: グループID
+        in: path
+        name: groupId
+        required: true
+        type: string
+      - description: 権限変更するユーザーID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: 権限変更情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/UpdateMemberRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 権限変更成功
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: 権限不足
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: グループまたはユーザーが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: メンバー権限変更
+      tags:
+      - groups
+  /groups/{groupId}/stats:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたグループの統計情報（メンバー数、タスク数など）を取得します
+      parameters:
+      - description: グループID
+        in: path
+        name: groupId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 統計情報取得成功
+          schema:
+            $ref: '#/definitions/GroupStatsResponse'
+        "400":
+          description: グループIDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: グループへのアクセス権限なし
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: グループが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: グループ統計取得
+      tags:
+      - groups
+  /groups/my:
+    get:
+      consumes:
+      - application/json
+      description: 自分が所属しているグループの一覧を取得します（ページング対応）
+      parameters:
+      - description: グループタイプでフィルタ
+        in: query
+        name: type
+        type: string
+      - default: 1
+        description: ページ番号
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 10
+        description: ページサイズ
+        in: query
+        maximum: 100
+        minimum: 1
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: グループ一覧取得成功
+          schema:
+            $ref: '#/definitions/GroupListResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 自分のグループ一覧取得
+      tags:
+      - groups
+  /groups/search:
+    get:
+      consumes:
+      - application/json
+      description: キーワードでグループを検索します（ページング対応）
+      parameters:
+      - description: 検索クエリ
+        in: query
+        name: q
+        required: true
+        type: string
+      - description: グループタイプでフィルタ
+        in: query
+        name: type
+        type: string
+      - default: 1
+        description: ページ番号
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 10
+        description: ページサイズ
+        in: query
+        maximum: 100
+        minimum: 1
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: グループ検索成功
+          schema:
+            $ref: '#/definitions/GroupListResponse'
+        "400":
+          description: 検索クエリが必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: グループ検索
+      tags:
+      - groups
+  /notifications:
+    post:
+      consumes:
+      - application/json
+      description: 新しい通知を作成します
+      parameters:
+      - description: 通知作成情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/CreateNotificationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 通知作成成功
+          schema:
+            $ref: '#/definitions/CreateNotificationResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 通知作成
+      tags:
+      - notifications
+  /notifications/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDの通知を取得します
+      parameters:
+      - description: 通知ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 通知取得成功
+          schema:
+            $ref: '#/definitions/GetNotificationResponse'
+        "400":
+          description: 通知IDが必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: 通知が見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 通知取得
+      tags:
+      - notifications
+  /notifications/{id}/read:
+    put:
+      consumes:
+      - application/json
+      description: 指定された通知を既読としてマークします
+      parameters:
+      - description: 通知ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 既読マーク成功
+          schema:
+            $ref: '#/definitions/MessageResponse'
+        "400":
+          description: 通知IDが必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: 通知が見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 通知既読マーク
+      tags:
+      - notifications
+  /notifications/{id}/send:
+    post:
+      consumes:
+      - application/json
+      description: 指定された通知を即座に送信します
+      parameters:
+      - description: 通知ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 通知送信成功
+          schema:
+            $ref: '#/definitions/MessageResponse'
+        "400":
+          description: 通知IDが必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: 通知が見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 通知送信
+      tags:
+      - notifications
+  /notifications/user/{user_id}:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたユーザーの通知一覧を取得します（ページング対応）
+      parameters:
+      - description: ユーザーID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - default: 10
+        description: 取得数の上限
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - default: 0
+        description: 取得開始位置
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 通知一覧取得成功
+          schema:
+            $ref: '#/definitions/GetUserNotificationsResponse'
+        "400":
+          description: ユーザーIDが必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: ユーザーの通知一覧取得
+      tags:
+      - notifications
+  /notifications/user/{user_id}/read-all:
+    put:
+      consumes:
+      - application/json
+      description: 指定されたユーザーの全ての未読通知を既読としてマークします
+      parameters:
+      - description: ユーザーID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 全既読マーク成功
+          schema:
+            $ref: '#/definitions/MessageResponse'
+        "400":
+          description: ユーザーIDが必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: 権限がない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 全通知既読マーク
+      tags:
+      - notifications
+  /notifications/user/{user_id}/unread/count:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたユーザーの未読通知数を取得します
+      parameters:
+      - description: ユーザーID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 未読通知数取得成功
+          schema:
+            $ref: '#/definitions/UnreadCountResponse'
+        "400":
+          description: ユーザーIDが必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 未読通知数取得
+      tags:
+      - notifications
+  /notifications/webhook:
+    post:
+      consumes:
+      - application/json
+      description: 外部サービスからのWebhookリクエストを処理します
+      parameters:
+      - description: Webhookペイロード
+        in: body
+        name: payload
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Webhook受信成功
+          schema:
+            $ref: '#/definitions/MessageResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Webhook処理
+      tags:
+      - notifications
+  /social/friends:
+    get:
+      consumes:
+      - application/json
+      description: 自分の友達一覧を取得します（ページング対応）
+      parameters:
+      - default: 1
+        description: ページ番号
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: ページサイズ
+        in: query
+        maximum: 100
+        minimum: 1
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 友達一覧取得成功
+          schema:
+            $ref: '#/definitions/FriendsListResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 友達一覧取得
+      tags:
+      - social
+  /social/friends/{userId}:
+    delete:
+      consumes:
+      - application/json
+      description: 友達関係を解除します
+      parameters:
+      - description: 削除する友達のユーザーID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 友達削除成功
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: ユーザーIDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: 友達関係が見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 友達削除
+      tags:
+      - social
+  /social/friends/{userId}/mutual:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたユーザーとの共通の友達を取得します
+      parameters:
+      - description: 対象ユーザーID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 共通の友達取得成功
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/FriendWithUserInfoResponse'
+                type: array
+            type: object
+        "400":
+          description: ユーザーIDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: ユーザーが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 共通の友達取得
+      tags:
+      - social
+  /social/friends/request:
+    post:
+      consumes:
+      - application/json
+      description: 指定されたユーザーに友達申請を送信します
+      parameters:
+      - description: 友達申請情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/SendFriendRequestRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 友達申請送信成功
+          schema:
+            $ref: '#/definitions/FriendshipResponse'
+        "400":
+          description: リクエストが無効（自分自身への申請など）
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: ユーザーが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: 既に友達または申請済み
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 友達申請送信
+      tags:
+      - social
+  /social/friends/requests/{friendshipId}/accept:
+    put:
+      consumes:
+      - application/json
+      description: 受信した友達申請を承認します
+      parameters:
+      - description: 友達申請ID
+        in: path
+        name: friendshipId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 友達申請承認成功
+          schema:
+            $ref: '#/definitions/FriendshipResponse'
+        "400":
+          description: 友達申請IDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: この申請を承認する権限がない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: 友達申請が見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 友達申請承認
+      tags:
+      - social
+  /social/friends/requests/{friendshipId}/decline:
+    put:
+      consumes:
+      - application/json
+      description: 受信した友達申請を拒否します
+      parameters:
+      - description: 友達申請ID
+        in: path
+        name: friendshipId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 友達申請拒否成功
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: 友達申請IDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: この申請を拒否する権限がない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: 友達申請が見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 友達申請拒否
+      tags:
+      - social
+  /social/friends/requests/received:
+    get:
+      consumes:
+      - application/json
+      description: 自分宛の友達申請一覧を取得します（ページング対応）
+      parameters:
+      - default: 1
+        description: ページ番号
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: ページサイズ
+        in: query
+        maximum: 100
+        minimum: 1
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 友達申請一覧取得成功
+          schema:
+            $ref: '#/definitions/dto.PendingRequestsResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 受信した友達申請取得
+      tags:
+      - social
+  /social/friends/requests/sent:
+    get:
+      consumes:
+      - application/json
+      description: 自分が送信した友達申請一覧を取得します（ページング対応）
+      parameters:
+      - default: 1
+        description: ページ番号
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: ページサイズ
+        in: query
+        maximum: 100
+        minimum: 1
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 送信済み申請一覧取得成功
+          schema:
+            $ref: '#/definitions/dto.SentRequestsResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 送信した友達申請取得
+      tags:
+      - social
+  /social/invitations:
+    post:
+      consumes:
+      - application/json
+      description: 友達招待またはグループ招待を作成します
+      parameters:
+      - description: 招待作成情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/CreateInvitationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 招待作成成功
+          schema:
+            $ref: '#/definitions/InvitationResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 招待作成
+      tags:
+      - social
+  /social/invitations/{code}/accept:
+    post:
+      consumes:
+      - application/json
+      description: 招待コードを使用して招待を受諾します
+      parameters:
+      - description: 招待コード
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 招待受諾成功
+          schema:
+            $ref: '#/definitions/InvitationResultResponse'
+        "400":
+          description: 招待コードが必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: 有効な招待が見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "410":
+          description: 招待の有効期限が切れている
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 招待受諾
+      tags:
+      - social
+  /social/invitations/{invitationId}:
+    delete:
+      consumes:
+      - application/json
+      description: 送信した招待をキャンセルします
+      parameters:
+      - description: 招待ID
+        in: path
+        name: invitationId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 招待キャンセル成功
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: 招待IDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: この招待をキャンセルする権限がない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: 招待が見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 招待キャンセル
+      tags:
+      - social
+    get:
+      consumes:
+      - application/json
+      description: 招待の詳細情報を取得します（権限チェック付き）
+      parameters:
+      - description: 招待ID
+        in: path
+        name: invitationId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 招待詳細取得成功
+          schema:
+            $ref: '#/definitions/InvitationResponse'
+        "400":
+          description: 招待IDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: この招待を閲覧する権限がない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: 招待が見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 招待詳細取得
+      tags:
+      - social
+  /social/invitations/{invitationId}/decline:
+    put:
+      consumes:
+      - application/json
+      description: 受信した招待を拒否します
+      parameters:
+      - description: 招待ID
+        in: path
+        name: invitationId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 招待拒否成功
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: 招待IDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: この招待を拒否する権限がない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: 招待が見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 招待拒否
+      tags:
+      - social
+  /social/invitations/{invitationId}/url:
+    get:
+      consumes:
+      - application/json
+      description: 指定された招待のURLを生成します
+      parameters:
+      - description: 招待ID
+        in: path
+        name: invitationId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 招待URL生成成功
+          schema:
+            $ref: '#/definitions/InviteURLResponse'
+        "400":
+          description: 招待IDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: この招待のURLを生成する権限がない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: 招待が見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 招待URL生成
+      tags:
+      - social
+  /social/invitations/code/{code}:
+    get:
+      consumes:
+      - application/json
+      description: 招待コードを使用して招待情報を取得します（パブリック情報のみ）
+      parameters:
+      - description: 招待コード
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 招待情報取得成功
+          schema:
+            properties:
+              data:
+                properties:
+                  created_at:
+                    type: string
+                  expires_at:
+                    type: string
+                  id:
+                    type: string
+                  message:
+                    type: string
+                  method:
+                    type: string
+                  status:
+                    type: string
+                  type:
+                    type: string
+                type: object
+            type: object
+        "400":
+          description: 招待コードが必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: 有効な招待が見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "410":
+          description: 招待の有効期限が切れている
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: 招待コードから招待取得
+      tags:
+      - social
+  /social/invitations/received:
+    get:
+      consumes:
+      - application/json
+      description: 自分が受信した招待一覧を取得します（ページング対応）
+      parameters:
+      - default: 1
+        description: ページ番号
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: ページサイズ
+        in: query
+        maximum: 100
+        minimum: 1
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 受信済み招待一覧取得成功
+          schema:
+            $ref: '#/definitions/dto.InvitationsListResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 受信した招待一覧取得
+      tags:
+      - social
+  /social/invitations/sent:
+    get:
+      consumes:
+      - application/json
+      description: 自分が送信した招待一覧を取得します（ページング対応）
+      parameters:
+      - default: 1
+        description: ページ番号
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: ページサイズ
+        in: query
+        maximum: 100
+        minimum: 1
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 送信済み招待一覧取得成功
+          schema:
+            $ref: '#/definitions/dto.InvitationsListResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 送信した招待一覧取得
+      tags:
+      - social
+  /social/relationships/{userId}:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたユーザーとの関係性（友達、ブロック、申請状況）を取得します
+      parameters:
+      - description: 対象ユーザーID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 関係性取得成功
+          schema:
+            $ref: '#/definitions/UserRelationshipResponse'
+        "400":
+          description: ユーザーIDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: ユーザーが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: ユーザー間関係取得
+      tags:
+      - social
+  /social/users/{userId}/block:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたユーザーのブロックを解除します
+      parameters:
+      - description: ブロック解除するユーザーID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ブロック解除成功
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: ユーザーIDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: ブロック関係が見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: ブロック解除
+      tags:
+      - social
+    post:
+      consumes:
+      - application/json
+      description: 指定されたユーザーをブロックします
+      parameters:
+      - description: ブロックするユーザーID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ユーザーブロック成功
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: ユーザーIDが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: ユーザーが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: ユーザーブロック
+      tags:
+      - social
+  /tasks:
+    get:
+      consumes:
+      - application/json
+      description: フィルタリング、ページング、ソート機能付きでタスク一覧を取得します
+      parameters:
+      - description: ステータスフィルタ
+        enum:
+        - TODO
+        - IN_PROGRESS
+        - DONE
+        in: query
+        name: status
+        type: string
+      - description: 優先度フィルタ
+        enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+        in: query
+        name: priority
+        type: string
+      - description: カテゴリフィルタ
+        enum:
+        - WORK
+        - PERSONAL
+        - STUDY
+        - HEALTH
+        - SHOPPING
+        - OTHER
+        in: query
+        name: category
+        type: string
+      - description: 担当者IDフィルタ
+        in: query
+        name: assignee_id
+        type: string
+      - description: 作成者IDフィルタ
+        in: query
+        name: created_by
+        type: string
+      - description: 期限日FROM
+        in: query
+        name: due_date_from
+        type: string
+      - description: 期限日TO
+        in: query
+        name: due_date_to
+        type: string
+      - default: 1
+        description: ページ番号
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 10
+        description: ページサイズ
+        in: query
+        maximum: 100
+        minimum: 1
+        name: page_size
+        type: integer
+      - default: created_at
+        description: ソートフィールド
+        enum:
+        - created_at
+        - updated_at
+        - title
+        - priority
+        - status
+        - due_date
+        in: query
+        name: sort_field
+        type: string
+      - default: DESC
+        description: ソート方向
+        enum:
+        - ASC
+        - DESC
+        in: query
+        name: sort_direction
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: タスク一覧取得成功
+          schema:
+            $ref: '#/definitions/TaskListResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: タスク一覧取得
+      tags:
+      - tasks
+    post:
+      consumes:
+      - application/json
+      description: 新しいタスクを作成します
+      parameters:
+      - description: タスク作成情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/TaskRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: タスク作成成功
+          schema:
+            $ref: '#/definitions/TaskCreateResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: タスク作成
+      tags:
+      - tasks
+  /tasks/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたIDのタスクを削除します
+      parameters:
+      - description: タスクID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: タスク削除成功
+          schema:
+            $ref: '#/definitions/TaskDeleteResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: タスクが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: タスク削除
+      tags:
+      - tasks
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDのタスクを取得します
+      parameters:
+      - description: タスクID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: タスク取得成功
+          schema:
+            $ref: '#/definitions/TaskGetResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: タスクが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: タスク取得
+      tags:
+      - tasks
+    put:
+      consumes:
+      - application/json
+      description: 指定されたIDのタスクを更新します
+      parameters:
+      - description: タスクID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: タスク更新情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/TaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: タスク更新成功
+          schema:
+            $ref: '#/definitions/TaskUpdateResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: タスクが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: タスク更新
+      tags:
+      - tasks
+  /tasks/{id}/assign:
+    put:
+      consumes:
+      - application/json
+      description: 指定されたタスクをユーザーに割り当てます
+      parameters:
+      - description: タスクID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 割り当て情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/AssignTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: タスク割り当て成功
+          schema:
+            $ref: '#/definitions/TaskUpdateResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: タスクまたはユーザーが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: タスク割り当て
+      tags:
+      - tasks
+  /tasks/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: 指定されたタスクのステータスを変更します
+      parameters:
+      - description: タスクID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: ステータス変更情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/ChangeStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ステータス変更成功
+          schema:
+            $ref: '#/definitions/TaskUpdateResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: タスクが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: タスクステータス変更
+      tags:
+      - tasks
+  /tasks/my:
+    get:
+      consumes:
+      - application/json
+      description: 現在認証されているユーザーに割り当てられたタスクを取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 自分のタスク取得成功
+          schema:
+            $ref: '#/definitions/TaskListResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 自分のタスク取得
+      tags:
+      - tasks
+  /tasks/overdue:
+    get:
+      consumes:
+      - application/json
+      description: 期限が過ぎているタスクの一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 期限切れタスク取得成功
+          schema:
+            $ref: '#/definitions/TaskListResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 期限切れタスク取得
+      tags:
+      - tasks
+  /tasks/search:
+    get:
+      consumes:
+      - application/json
+      description: キーワードでタスクを検索します（タイトルと説明が対象）
+      parameters:
+      - description: 検索クエリ
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: 20
+        description: 結果の最大数
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: タスク検索成功
+          schema:
+            $ref: '#/definitions/TaskListResponse'
+        "400":
+          description: 検索クエリが必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: タスク検索
+      tags:
+      - tasks
+  /tasks/stats/category-breakdown:
+    get:
+      consumes:
+      - application/json
+      description: タスクのカテゴリ別内訳統計を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: カテゴリ別統計取得成功
+          schema:
+            properties:
+              data:
+                properties:
+                  PERSONAL:
+                    $ref: '#/definitions/CategoryBreakdownData'
+                  WORK:
+                    $ref: '#/definitions/CategoryBreakdownData'
+                type: object
+              success:
+                type: boolean
+            type: object
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: カテゴリ別統計取得
+      tags:
+      - stats
+  /tasks/stats/daily/{date}:
+    get:
+      consumes:
+      - application/json
+      description: 指定された日付のタスク統計情報を取得します
+      parameters:
+      - description: 日付(YYYY-MM-DD形式)
+        in: path
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 日次統計取得成功
+          schema:
+            $ref: '#/definitions/DailyStatsResponse'
+        "400":
+          description: 日付形式が無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 指定日の統計取得
+      tags:
+      - stats
+  /tasks/stats/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: ダッシュボード表示用の包括的な統計情報を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ダッシュボード統計取得成功
+          schema:
+            $ref: '#/definitions/DashboardStatsResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: ダッシュボード統計取得
+      tags:
+      - stats
+  /tasks/stats/monthly:
+    get:
+      consumes:
+      - application/json
+      description: 指定された月のタスク統計情報を取得します
+      parameters:
+      - default: 2024
+        description: 年
+        in: query
+        maximum: 3000
+        minimum: 2000
+        name: year
+        type: integer
+      - default: 1
+        description: 月
+        in: query
+        maximum: 12
+        minimum: 1
+        name: month
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 月次統計取得成功
+          schema:
+            $ref: '#/definitions/WeeklyStatsResponse'
+        "400":
+          description: パラメータが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 月次統計取得
+      tags:
+      - stats
+  /tasks/stats/priority-breakdown:
+    get:
+      consumes:
+      - application/json
+      description: タスクの優先度別内訳統計を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 優先度別統計取得成功
+          schema:
+            properties:
+              data:
+                properties:
+                  HIGH:
+                    $ref: '#/definitions/PriorityBreakdownData'
+                  LOW:
+                    $ref: '#/definitions/PriorityBreakdownData'
+                  MEDIUM:
+                    $ref: '#/definitions/PriorityBreakdownData'
+                type: object
+              success:
+                type: boolean
+            type: object
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 優先度別統計取得
+      tags:
+      - stats
+  /tasks/stats/progress-level:
+    get:
+      consumes:
+      - application/json
+      description: 完了率に基づく進捗レベル情報を取得します
+      parameters:
+      - description: 完了率(0-100)
+        in: query
+        name: rate
+        required: true
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 進捗レベル取得成功
+          schema:
+            $ref: '#/definitions/ProgressLevelResponse'
+        "400":
+          description: 完了率パラメータが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 進捗レベル取得
+      tags:
+      - stats
+  /tasks/stats/progress-summary:
+    get:
+      consumes:
+      - application/json
+      description: 指定された日数分の進捗サマリーを取得します
+      parameters:
+      - default: 7
+        description: 対象日数
+        in: query
+        maximum: 365
+        minimum: 1
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 進捗サマリー取得成功
+          schema:
+            $ref: '#/definitions/ProgressSummaryResponse'
+        "400":
+          description: パラメータが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 進捗サマリー取得
+      tags:
+      - stats
+  /tasks/stats/today:
+    get:
+      consumes:
+      - application/json
+      description: 本日のタスク統計情報を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 今日の統計取得成功
+          schema:
+            $ref: '#/definitions/DailyStatsResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 今日の統計取得
+      tags:
+      - stats
+  /tasks/stats/weekly:
+    get:
+      consumes:
+      - application/json
+      description: 指定された週のタスク統計情報を取得します
+      parameters:
+      - description: 基準日付(YYYY-MM-DD形式)
+        in: query
+        name: date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 週次統計取得成功
+          schema:
+            $ref: '#/definitions/WeeklyStatsResponse'
+        "400":
+          description: 日付形式が無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 週次統計取得
+      tags:
+      - stats
+  /tasks/user/{user_id}:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたユーザーに割り当てられたタスクを取得します
+      parameters:
+      - description: ユーザーID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ユーザータスク取得成功
+          schema:
+            $ref: '#/definitions/TaskListResponse'
+        "400":
+          description: リクエストが無効
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: 認証が必要
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: ユーザーが見つからない
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: 内部サーバーエラー
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 特定ユーザーのタスク取得
+      tags:
+      - tasks
+securityDefinitions:
+  BearerAuth:
+    description: 'JWT認証トークン。値の形式: "Bearer {token}"'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
+tags:
+- description: 認証・認可関連のAPI
+  name: auth
+- description: ユーザー管理関連のAPI
+  name: users
+- description: タスク管理関連のAPI
+  name: tasks
+- description: 統計・分析関連のAPI
+  name: stats
+- description: 通知管理関連のAPI
+  name: notifications
