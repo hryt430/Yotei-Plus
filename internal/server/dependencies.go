@@ -168,7 +168,7 @@ func NewDependencies(cfg *config.Config, log logger.Logger) (*Dependencies, erro
 	statsService := taskUseCase.NewTaskStatsService(
 		taskRepository,
 		statsRepository,
-		log,
+		&log,
 	)
 
 	// Social module dependencies
@@ -188,13 +188,13 @@ func NewDependencies(cfg *config.Config, log logger.Logger) (*Dependencies, erro
 		userValidator, // using the existing userValidator
 		socialEventPublisher,
 		urlGateway,
-		log,
+		&log,
 	)
 
 	// Group module dependencies
 	groupSqlHandler := groupDatabaseInfra.NewSqlHandler()
 	groupRepository := groupDatabase.NewGroupRepository(groupSqlHandler.GetConnection(), log)
-	groupService := groupUseCase.NewGroupService(groupRepository, userValidator, log)
+	groupService := groupUseCase.NewGroupService(groupRepository, userValidator, &log)
 
 	// メッセージブローカーとスケジューラー
 	messageBroker := notificationMessaging.NewInMemoryMessageBroker(log)

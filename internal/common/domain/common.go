@@ -4,10 +4,10 @@ import "context"
 
 // UserInfo は統一されたユーザー基本情報構造体
 type UserInfo struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-}
+	ID       string `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Username string `json:"username" example:"user123"`
+	Email    string `json:"email" example:"user@example.com"`
+} // @name UserInfo
 
 // Pagination はページネーション情報
 type Pagination struct {
