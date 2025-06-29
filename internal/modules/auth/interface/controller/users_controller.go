@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	userService "github.com/hryt430/Yotei+/internal/modules/auth/usecase/user"
 	"github.com/hryt430/Yotei+/pkg/logger"
-	"github.com/hryt430/Yotei+/pkg/utils"
 )
 
 type UserController struct {
@@ -49,6 +48,7 @@ type DetailedUserResponse struct {
 	UpdatedAt     string `json:"updated_at"`
 }
 
+
 // GetUsers はユーザー一覧を取得する（タスク割り当て用）
 func (c *UserController) GetUsers(ctx *gin.Context) {
 	// 検索クエリの取得
@@ -57,7 +57,11 @@ func (c *UserController) GetUsers(ctx *gin.Context) {
 	users, err := c.UserService.GetUsers(ctx, search)
 	if err != nil {
 		c.logger.Error("Failed to get users", logger.Error(err))
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to get users"))
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Failed to get users",
+	})
 		return
 	}
 
@@ -82,14 +86,22 @@ func (c *UserController) GetUsers(ctx *gin.Context) {
 func (c *UserController) GetUser(ctx *gin.Context) {
 	userID := ctx.Param("id")
 	if userID == "" {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("User ID is required"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "User ID is required",
+	})
 		return
 	}
 
 	// UUIDの検証
 	parsedID, err := uuid.Parse(userID)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid user ID format"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Invalid user ID format",
+	})
 		return
 	}
 
@@ -97,12 +109,20 @@ func (c *UserController) GetUser(ctx *gin.Context) {
 	user, err := c.UserService.FindUserByID(parsedID)
 	if err != nil {
 		c.logger.Error("Failed to get user", logger.Any("userID", userID), logger.Error(err))
-		ctx.JSON(http.StatusNotFound, utils.ErrorResponse("User not found"))
+		ctx.JSON(http.StatusNotFound, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "User not found",
+	})
 		return
 	}
 
 	if user == nil {
-		ctx.JSON(http.StatusNotFound, utils.ErrorResponse("User not found"))
+		ctx.JSON(http.StatusNotFound, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "User not found",
+	})
 		return
 	}
 
@@ -148,14 +168,22 @@ func (c *UserController) GetUser(ctx *gin.Context) {
 func (c *UserController) UpdateUser(ctx *gin.Context) {
 	userID := ctx.Param("id")
 	if userID == "" {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("User ID is required"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "User ID is required",
+	})
 		return
 	}
 
 	// UUIDの検証
 	parsedID, err := uuid.Parse(userID)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid user ID format"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Invalid user ID format",
+	})
 		return
 	}
 
@@ -165,20 +193,32 @@ func (c *UserController) UpdateUser(ctx *gin.Context) {
 
 	// 権限チェック：自分の情報のみ更新可能（管理者は例外）
 	if userID != currentUserID && currentUserRole != "admin" {
-		ctx.JSON(http.StatusForbidden, utils.ErrorResponse("Access denied: You can only update your own profile"))
+		ctx.JSON(http.StatusForbidden, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Access denied: You can only update your own profile",
+	})
 		return
 	}
 
 	// リクエストボディの解析
 	var req UpdateUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: err.Error(),
+	})
 		return
 	}
 
 	// 少なくとも1つのフィールドが更新対象である必要がある
 	if req.Username == "" && req.Email == "" {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("At least one field (username or email) must be provided"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "At least one field (username or email) must be provided",
+	})
 		return
 	}
 
@@ -195,14 +235,26 @@ func (c *UserController) UpdateUser(ctx *gin.Context) {
 	if err != nil {
 		c.logger.Error("Failed to update user", logger.Any("userID", userID), logger.Error(err))
 		if strings.Contains(err.Error(), "email already exists") {
-			ctx.JSON(http.StatusConflict, utils.ErrorResponse("Email already exists"))
+			ctx.JSON(http.StatusConflict, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Email already exists",
+	})
 			return
 		}
 		if strings.Contains(err.Error(), "username already exists") {
-			ctx.JSON(http.StatusConflict, utils.ErrorResponse("Username already exists"))
+			ctx.JSON(http.StatusConflict, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Username already exists",
+	})
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to update user"))
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Failed to update user",
+	})
 		return
 	}
 
@@ -230,20 +282,32 @@ func (c *UserController) GetCurrentUser(ctx *gin.Context) {
 	// auth_middlewareで設定されたユーザーIDを取得
 	userIDStr, exists := ctx.Get("user_id")
 	if !exists {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse("User not authenticated"))
+		ctx.JSON(http.StatusUnauthorized, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "User not authenticated",
+	})
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid user ID"))
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "Invalid user ID",
+	})
 		return
 	}
 
 	user, err := c.UserService.FindUserByID(userID)
 	if err != nil || user == nil {
 		c.logger.Error("Failed to get current user", logger.Any("userID", userID), logger.Error(err))
-		ctx.JSON(http.StatusNotFound, utils.ErrorResponse("User not found"))
+		ctx.JSON(http.StatusNotFound, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "User not found",
+	})
 		return
 	}
 
@@ -270,7 +334,11 @@ func (c *UserController) UpdateCurrentUser(ctx *gin.Context) {
 	// auth_middlewareで設定されたユーザーIDを取得
 	userIDStr, exists := ctx.Get("user_id")
 	if !exists {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse("User not authenticated"))
+		ctx.JSON(http.StatusUnauthorized, ErrorResponse{
+		Success: false,
+		Error:   "REQUEST_ERROR",
+		Message: "User not authenticated",
+	})
 		return
 	}
 
