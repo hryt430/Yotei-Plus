@@ -10,11 +10,15 @@ import (
 type NotificationType string
 
 const (
-	AppNotification NotificationType = "APP_NOTIFICATION" // アプリ内通知
-	TaskAssigned    NotificationType = "TASK_ASSIGNED"    // タスク割り当て
-	TaskCompleted   NotificationType = "TASK_COMPLETED"   // タスク完了
-	TaskDueSoon     NotificationType = "TASK_DUE_SOON"    // タスク期限間近
-	SystemNotice    NotificationType = "SYSTEM_NOTICE"    // システムからの通知
+	AppNotification  NotificationType = "APP_NOTIFICATION"   // アプリ内通知
+	TaskAssigned     NotificationType = "TASK_ASSIGNED"      // タスク割り当て
+	TaskCompleted    NotificationType = "TASK_COMPLETED"     // タスク完了
+	TaskDueSoon      NotificationType = "TASK_DUE_SOON"      // タスク期限間近
+	SystemNotice     NotificationType = "SYSTEM_NOTICE"      // システムからの通知
+	FriendRequest    NotificationType = "FRIEND_REQUEST"     //フレンドリクエストの通知
+	FriendAccepted   NotificationType = "FRIEND_ACCEPTED"    //フレンドリクエスト認証の通知
+	GroupInvitation  NotificationType = "GROUP_INVITATION"   //グループ招待の通知
+	GroupMemberAdded NotificationType = "GROUP_MEMBER_ADDED" //グループメンバー追加の通知
 )
 
 // NotificationStatus は通知の状態を表す
